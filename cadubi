@@ -21,92 +21,92 @@ use Term::ReadKey;
 use lib "$Bin/../lib";
 
 # global variables
-$ESC = "\x1b";			# our most important var
-$AUDIBLE = 1;			# beep unless -m, --mute, or configured in 'cadubi'
-@pos = (1,1); 			# position of cursor (x,y)
-@totalspan = undef; 	# width & height of console (x,y)
-@workspan = undef; 		# same as $totalspace, but y-1
-@charmap = undef; 		# a 3D array:
-						# 		[col]	[row]	[(0 => char to paint with
-						#						  1 => bg color
-						#						  2 => fg color
-						#						  3 => bold
-						#						  4 => inverse
-						#						  5 => blink
-						#                         6 => special char command
-						#						)]
+$ESC = "\x1b";          # our most important var
+$AUDIBLE = 1;           # beep unless -m, --mute, or configured in 'cadubi'
+@pos = (1,1);           # position of cursor (x,y)
+@totalspan = undef;     # width & height of console (x,y)
+@workspan = undef;      # same as $totalspace, but y-1
+@charmap = undef;       # a 3D array:
+                        #       [col]   [row]   [(0 => char to paint with
+                        #                         1 => bg color
+                        #                         2 => fg color
+                        #                         3 => bold
+                        #                         4 => inverse
+                        #                         5 => blink
+                        #                         6 => special char command
+                        #                       )]
 @charmode = ('x',0,0,0,0,0,'');
-$status_changed = 1;	# used with &status so we don't constantly redraw.
-$current_filename = undef;	# name of file we're working with
-$cadubi_done = 0;		# main loop var
+$status_changed = 1;    # used with &status so we don't constantly redraw.
+$current_filename = undef;  # name of file we're working with
+$cadubi_done = 0;       # main loop var
 
 # runtime statements
-&initKeys(); 		# setup %controlkeys and %keymap
-&initANSI(); 		# setup %ansi_mode
-&setspan();			# setup span of terminal (default 24x80)
-&get_args;			# read in command line parameters
-&clear;				# clear screen
-&debug_open();		# open debug file		
-ReadMode raw;		# set terminal getchar mode
+&initKeys();        # setup %controlkeys and %keymap
+&initANSI();        # setup %ansi_mode
+&setspan();         # setup span of terminal (default 24x80)
+&get_args;          # read in command line parameters
+&clear;             # clear screen
+&debug_open();      # open debug file
+ReadMode raw;       # set terminal getchar mode
 
 if ($current_filename) {
-	# file has been specified via command line, open it
-	&user_readfile($current_filename);
+    # file has been specified via command line, open it
+    &user_readfile($current_filename);
 } else {
-	# draw default status bar
-	&status();
+    # draw default status bar
+    &status();
 }
 
 do {
-	&status if &HandleKeystroke(ReadKey(0)); # handle the key
+    &status if &HandleKeystroke(ReadKey(0)); # handle the key
 } until ($cadubi_done);
 
-&clear;				# clear screen
-&cleanup;			# cleanup code
+&clear;             # clear screen
+&cleanup;           # cleanup code
 
 sub cleanup {
-	ReadMode restore;	# restore previous terminal getchar mode
-	&debug_close();		# close debug file
-	print $ESC.'[0m';	# return to normal ansi mode if anything has messed up
+    ReadMode restore;   # restore previous terminal getchar mode
+    &debug_close();     # close debug file
+    print $ESC.'[0m';   # return to normal ansi mode if anything has messed up
 }
 
 ########################################################################
 # ANSI MODES
 sub initANSI {
-	%ansi_mode = (	'escape' => 		"\x1b",
-					'normal' => 		0,
-					'bold' => 			1,
-					'blink' => 			5,
-					'inverse ' => 		7,
-					'invisible' => 		8,
-					'fg_black' => 		30,
-					'fg_red' => 		31,
-					'fg_green' => 		32,
-					'fg_yellow' => 		33,
-					'fg_blue' => 		34,
-					'fg_magenta' => 	35,
-					'fg_cyan' => 		36,
-					'fg_white' => 		37,
-					'bg_black' => 		40,
-					'bg_red' => 		41,
-					'bg_green' => 		42,
-					'bg_yellow' => 		43,
-					'bg_blue' => 		44,
-					'bg_magenta' => 	45,
-					'bg_cyan' => 		46,
-					'bg_white' => 		47 );
+    %ansi_mode = (  'escape' =>         "\x1b",
+                    'normal' =>         0,
+                    'bold' =>           1,
+                    'blink' =>          5,
+                    'inverse ' =>       7,
+                    'invisible' =>      8,
+                    'fg_black' =>       30,
+                    'fg_red' =>         31,
+                    'fg_green' =>       32,
+                    'fg_yellow' =>      33,
+                    'fg_blue' =>        34,
+                    'fg_magenta' =>     35,
+                    'fg_cyan' =>        36,
+                    'fg_white' =>       37,
+                    'bg_black' =>       40,
+                    'bg_red' =>         41,
+                    'bg_green' =>       42,
+                    'bg_yellow' =>      43,
+                    'bg_blue' =>        44,
+                    'bg_magenta' =>     45,
+                    'bg_cyan' =>        46,
+                    'bg_white' =>       47 );
 
-	# color codes is used strictly for interface purposes
-	%color_codes = qw(	N normal	0 normal
-						W white		1 white
-						R red		2 red
-						G green		3 green
-						Y yellow	4 yellow
-						B blue		5 blue
-						M magenta	6 magenta
-						C cyan		7 cyan
-						K black		8 black
-					);
+    # color codes is used strictly for interface purposes
+    %color_codes = qw(  N normal    0 normal
+                        W white     1 white
+                        R red       2 red
+                        G green     3 green
+                        Y yellow    4 yellow
+                        B blue      5 blue
+                        M magenta   6 magenta
+                        C cyan      7 cyan
+                        K black     8 black
+                    );
 }
 
 
@@ -115,82 +115,82 @@ sub initANSI {
 # CONSOLE ROUTINES
 
 sub curs_move {
-	# accepts coordinates ((x,y) or (column, row))
-	if (($_[0] >= 1) && ($_[0] <= $totalspan[0]) && ($_[1] >= 1) && ($_[1] <= $totalspan[1])) {
-		print $ESC.'['.$_[1].';'.$_[0].'H';
-		@pos = ($_[0], $_[1]);
-	} else {
-		#&debug('&curs_move out of range: ('.$_[0].','.$_[1].')');
-		#&debug('  >> @totalspan = ('.$totalspan[0].','.$totalspan[1].')');
-		#&debug('  >> @workspan  = ('.$workspan[0].','.$workspan[1].')');
-		#&debug('  >> @pos       = ('.$pos[0].','.$pos[1].')');
-		return 0;
-	}
-	1;
+    # accepts coordinates ((x,y) or (column, row))
+    if (($_[0] >= 1) && ($_[0] <= $totalspan[0]) && ($_[1] >= 1) && ($_[1] <= $totalspan[1])) {
+        print $ESC.'['.$_[1].';'.$_[0].'H';
+        @pos = ($_[0], $_[1]);
+    } else {
+        #&debug('&curs_move out of range: ('.$_[0].','.$_[1].')');
+        #&debug('  >> @totalspan = ('.$totalspan[0].','.$totalspan[1].')');
+        #&debug('  >> @workspan  = ('.$workspan[0].','.$workspan[1].')');
+        #&debug('  >> @pos       = ('.$pos[0].','.$pos[1].')');
+        return 0;
+    }
+    1;
 }
 
 sub curs_move_up {
-	if ($pos[1] > 1) {
-		print $ESC.'[1A';
-		$pos[1]--;
-	} else {
-		&beep;
-		return 0;
-	}
-	1;
+    if ($pos[1] > 1) {
+        print $ESC.'[1A';
+        $pos[1]--;
+    } else {
+        &beep;
+        return 0;
+    }
+    1;
 }
 sub curs_move_dn {
-	if ($pos[1] < $workspan[1]) {
-		print $ESC.'[1B';
-		$pos[1]++;
-	} else {
-		&beep;
-		return 0;
-	}
-	1;
+    if ($pos[1] < $workspan[1]) {
+        print $ESC.'[1B';
+        $pos[1]++;
+    } else {
+        &beep;
+        return 0;
+    }
+    1;
 }
 sub curs_move_rt {
-	if ($pos[0] < $workspan[0]) {
-		print $ESC.'[1C';
-		$pos[0]++;
-	} else {
-		&beep;
-		return 0;
-	}
-	1;
+    if ($pos[0] < $workspan[0]) {
+        print $ESC.'[1C';
+        $pos[0]++;
+    } else {
+        &beep;
+        return 0;
+    }
+    1;
 }
 sub curs_move_lt {
-	if ($pos[0] > 1) {
-		print $ESC.'[1D';
-		$pos[0]--;
-	} else {
-		&beep;
-		return 0;
-	}
-	1;
+    if ($pos[0] > 1) {
+        print $ESC.'[1D';
+        $pos[0]--;
+    } else {
+        &beep;
+        return 0;
+    }
+    1;
 }
 
 sub clear {
-	print $ESC.'[2J';
-	&curs_move(1,1);
+    print $ESC.'[2J';
+    &curs_move(1,1);
 }
 
 # set the size of our workspace
 sub setspan {
-	if (@_) {
-		@totalspan 	= ($_[0],$_[1]);
-		@workspan 	= ($_[0],$_[1]-1);
-		&debug("\&setspan (specified): $_[0], $_[1]");
-	} elsif (GetTerminalSize) { #Term::ReadKey
-		my ($w, $h, @x) = GetTerminalSize; #Term::ReadKey
-		@totalspan 	= ($w,$h);
-		@workspan 	= ($w,$h-1);
-		&debug("\&setspan (using Term::ReadKey): $w, $h");
-	} else { # we must assume, even though it makes an ass of u and me
-		@totalspan	= (80,24);
-		@workspan	= (80,23);
-		&debug("\&setspan (assumed): 80, 24");
-	}
+    if (@_) {
+        @totalspan  = ($_[0],$_[1]);
+        @workspan   = ($_[0],$_[1]-1);
+        &debug("\&setspan (specified): $_[0], $_[1]");
+    } elsif (GetTerminalSize) { #Term::ReadKey
+        my ($w, $h, @x) = GetTerminalSize; #Term::ReadKey
+        @totalspan  = ($w,$h);
+        @workspan   = ($w,$h-1);
+        &debug("\&setspan (using Term::ReadKey): $w, $h");
+    } else { # we must assume, even though it makes an ass of u and me
+        @totalspan  = (80,24);
+        @workspan   = (80,23);
+        &debug("\&setspan (assumed): 80, 24");
+    }
 }
 
 
@@ -201,39 +201,39 @@ sub setspan {
 # if second argument is true, leave the cursor at the end of the status text...
 #    (good for prompts, see &user_writefile().
 sub status {
-	my $msg = shift;
-	my $leave_cursor = shift;
-	my $out = undef;
-	if ($msg && (substr($msg,0,1) ne '>')) {
-		$out = 	''.$ESC.'[0m'.$ESC.'[7m '.
-					pack('A'.($totalspan[0]-1), $msg).$ESC.'[0m';
-		$status_changed = 1;
-	} else {
-		if ($status_changed || $msg) {
-			my $out_vers;
-			if ($msg) {
-				$out_vers = pack('A34',' '.substr($msg,1).' ');
-				$status_changed = 1;
-			} else {
-				$out_vers = pack('A34','  cadubi '.$CADUBI_VERSION.' ');
-				$status_changed = 0;
-			}
-			my $out_help = ' Type ^H for Help  ';
-			my $out_char = ' Pen: '.&printchar(@charmode).' ';
-			$out = 	$ESC.'[0m'.$ESC.'[7m'.$out_vers.
-						$ESC.'[0m'.$out_char.$ESC.'[7m'.
-						(' ' x 	($totalspan[0]-
-								 length($out_vers)-
-								 length($out_help)-
-								 8)
-						).
-						$out_help.$ESC.'[0m';
-		}
-	}
-	my @oldpos = @pos;
-	&curs_move(1,$totalspan[1]);
-	print $out;
-	&curs_move(@oldpos) unless $leave_cursor;
+    my $msg = shift;
+    my $leave_cursor = shift;
+    my $out = undef;
+    if ($msg && (substr($msg,0,1) ne '>')) {
+        $out =  ''.$ESC.'[0m'.$ESC.'[7m '.
+                    pack('A'.($totalspan[0]-1), $msg).$ESC.'[0m';
+        $status_changed = 1;
+    } else {
+        if ($status_changed || $msg) {
+            my $out_vers;
+            if ($msg) {
+                $out_vers = pack('A34',' '.substr($msg,1).' ');
+                $status_changed = 1;
+            } else {
+                $out_vers = pack('A34','  cadubi '.$CADUBI_VERSION.' ');
+                $status_changed = 0;
+            }
+            my $out_help = ' Type ^H for Help  ';
+            my $out_char = ' Pen: '.&printchar(@charmode).' ';
+            $out =  $ESC.'[0m'.$ESC.'[7m'.$out_vers.
+                        $ESC.'[0m'.$out_char.$ESC.'[7m'.
+                        (' ' x  ($totalspan[0]-
+                                 length($out_vers)-
+                                 length($out_help)-
+                                 8)
+                        ).
+                        $out_help.$ESC.'[0m';
+        }
+    }
+    my @oldpos = @pos;
+    &curs_move(1,$totalspan[1]);
+    print $out;
+    &curs_move(@oldpos) unless $leave_cursor;
 }
 
 # this promps the user with the first argument given, and waits for a string.
@@ -241,55 +241,55 @@ sub status {
 # user's allowed to fill the width between prompt & right edge with text.
 # a third argument is treated as a default answer, already filled in the field
 sub get_user_string {
-	my $msg = shift;
-	my $max = shift;
-	my $out = shift;
-	my @oldpos = @pos;
-	my $char = undef;
-	&curs_move(1,$totalspan[1]);
-	# notice we don't print a normal mode sequence (\x1b[0m) because we
-	# want to keep writing in inverse. we print a normal mode right before
-	# we do a return.
-	print $ESC.'[7m '.pack('A'.($workspan[0]-2),$msg)." ";
-	$max = $workspan[0]-length($msg)-3 unless $max;
-	&curs_move(length($msg)+3,$totalspan[1]);
-	print $out;
-	while (not $char =~ /[\n\x1b]/) {
-		$char = ReadKey(0);
-		# no chars < space
-		if ($char =~ /[\x00-\x1f]/) {
-			&beep;
-		}
-		# delete, but don't delete past starting x position
-		elsif (ord($char) == $keymap{'del'}) {
-			if ($out) {
-				# print a backspace...the same as move left one char, print
-				# a space (which moves the cursor right one char), then move
-				# back one char again
-				print $ESC.'[1D '.$ESC.'[1D';
-				$out = substr($out,0,-1);
-			} else {
-				&beep;
-			}
-		}
-		else {
-			if (length($out) >= $max) {
-				&beep;
-			} else {
-				$out .= $char;
-				print $char;
-			}
-		}
-	}
-	&curs_move(@oldpos);
-	print $ESC.'[0m';
-	# refresh status bar
-	$status_changed = 1;
-	&status();
-	# user hit enter
-	return $out if ($char eq "\n");
-	# user hit cancel
-	return undef;
+    my $msg = shift;
+    my $max = shift;
+    my $out = shift;
+    my @oldpos = @pos;
+    my $char = undef;
+    &curs_move(1,$totalspan[1]);
+    # notice we don't print a normal mode sequence (\x1b[0m) because we
+    # want to keep writing in inverse. we print a normal mode right before
+    # we do a return.
+    print $ESC.'[7m '.pack('A'.($workspan[0]-2),$msg)." ";
+    $max = $workspan[0]-length($msg)-3 unless $max;
+    &curs_move(length($msg)+3,$totalspan[1]);
+    print $out;
+    while (not $char =~ /[\n\x1b]/) {
+        $char = ReadKey(0);
+        # no chars < space
+        if ($char =~ /[\x00-\x1f]/) {
+            &beep;
+        }
+        # delete, but don't delete past starting x position
+        elsif (ord($char) == $keymap{'del'}) {
+            if ($out) {
+                # print a backspace...the same as move left one char, print
+                # a space (which moves the cursor right one char), then move
+                # back one char again
+                print $ESC.'[1D '.$ESC.'[1D';
+                $out = substr($out,0,-1);
+            } else {
+                &beep;
+            }
+        }
+        else {
+            if (length($out) >= $max) {
+                &beep;
+            } else {
+                $out .= $char;
+                print $char;
+            }
+        }
+    }
+    &curs_move(@oldpos);
+    print $ESC.'[0m';
+    # refresh status bar
+    $status_changed = 1;
+    &status();
+    # user hit enter
+    return $out if ($char eq "\n");
+    # user hit cancel
+    return undef;
 }
 
 
@@ -297,62 +297,62 @@ sub get_user_string {
 # SUPPORT SUBROUTINES
 
 sub beep {
-	print "\x07" if $AUDIBLE;
+    print "\x07" if $AUDIBLE;
 }
 
 sub refresh {
-	my @oldpos = @pos;
-	&clear();
-	my ($x, $y);
-	for ($y=1; $y<=$workspan[1]; $y++) {
-		for ($x=1; $x<=$workspan[0]; $x++) {
-			if (@{$charmap[$x][$y]}) {
-				print &printchar(@{$charmap[$x][$y]});
-			} else {
-				print ' ';
-			}
-		}
-		&curs_move($x--,$y);
-	}
-	&curs_move(@oldpos);
+    my @oldpos = @pos;
+    &clear();
+    my ($x, $y);
+    for ($y=1; $y<=$workspan[1]; $y++) {
+        for ($x=1; $x<=$workspan[0]; $x++) {
+            if (@{$charmap[$x][$y]}) {
+                print &printchar(@{$charmap[$x][$y]});
+            } else {
+                print ' ';
+            }
+        }
+        &curs_move($x--,$y);
+    }
+    &curs_move(@oldpos);
 }
 
 sub printchar { # returns a string with the current ANSI mode and the character
-	my $out = undef;
-	my @desc = @_;
-	my $char = shift(@desc); #key to draw
-	pop(@desc); #remove special char command
-	$out.= $ESC.'['; #print properties
-	foreach (@desc) {
-		$out.= $_.';' if ($_);
-	}
-	$out = substr($out,0,-1).'m';
-	$out = undef if ($out eq $ESC.'m');
-	if (defined($char)) { #print char or space if there's no char
-		$out.= $char;
-	} else {
-		$out.= ' ';
-	}
-	$out.= $ESC.'[0m';
-	return $out;
+    my $out = undef;
+    my @desc = @_;
+    my $char = shift(@desc); #key to draw
+    pop(@desc); #remove special char command
+    $out.= $ESC.'['; #print properties
+    foreach (@desc) {
+        $out.= $_.';' if ($_);
+    }
+    $out = substr($out,0,-1).'m';
+    $out = undef if ($out eq $ESC.'m');
+    if (defined($char)) { #print char or space if there's no char
+        $out.= $char;
+    } else {
+        $out.= ' ';
+    }
+    $out.= $ESC.'[0m';
+    return $out;
 }
 
 sub paintchar { # prints the char on screen and saves it to @charmap
-	@charmap->[$pos[0]][$pos[1]] = [@charmode];
-	print &printchar(@charmode);
-	&curs_move(@pos); #print moves to the right on us, without asking. the nerve!
+    @charmap->[$pos[0]][$pos[1]] = [@charmode];
+    print &printchar(@charmode);
+    &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
 sub erasechar { # saves blank char to @charmap, prints
-	@charmap->[$pos[0]][$pos[1]] = undef;
-	print &printchar(@{@charmap->[$pos[0]][$pos[1]]});
-	&curs_move(@pos); #print moves to the right on us, without asking. the nerve!
+    @charmap->[$pos[0]][$pos[1]] = undef;
+    print &printchar(@{@charmap->[$pos[0]][$pos[1]]});
+    &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
 sub usage {
-	if ($_[0]) {
-		print $_[0]."\n";
-	}
+    if ($_[0]) {
+        print $_[0]."\n";
+    }
 print <<END_USAGE;
 
 usage: $0 [OPTIONS] [FILE]
@@ -375,593 +375,593 @@ END_VERSION
 }
 
 sub get_args {
-	my @ARGS = @ARGV;
-	my ($option, $param1, $param2);
-	my $got_filename = 0;
-	while (@ARGS) {
-		&debug('Processing argument: '.$option);
-		$option = shift(@ARGS);
-		if (($option eq '-h') || ($option eq '--help')) {
-			&debug('>> printed &usage');
-			&usage();
-			&cleanup;
-			exit(1);
-		}
-		elsif (($option eq '-v') || ($option eq '--version')) {
-			&debug('>> printed &version');
-			&version;
-			&cleanup;
-			exit(1);
-		}
-		elsif (($option eq '-m') || ($option eq '--mute')) {
-			&debug('>> disabled audio');
-			$AUDIBLE = 0;
-		}
-		elsif (($option eq '-s') || ($option eq '--size')) {
-			($param1, $param2) = (shift(@ARGS), shift(@ARGS));
-			&debug('>> grabbing setspan variables, raw:');
-			&debug('>>   $param1 = '.$param1);
-			&debug('>>   $param2 = '.$param2);
-			$param1 = 80 unless $param1;
-			$param2 = 24 unless $param2;
-			&debug('>> processed setspan vars:');
-			&debug('>>   $param1 = '.$param1);
-			&debug('>>   $param2 = '.$param2);
-			&setspan($param1, $param2);
-		}
-		elsif ($option =~ /^-/) {
-			&usage('Unknown option: '.$option);
-			&cleanup;
-			exit(1);
-		}
-		elsif (not $got_filename) {
-			$got_filename = 1;
-			$current_filename = $option;
-		}
-		else {
-			&usage('Unknown argument: '.$option);
-			&cleanup;
-			exit(1);
-		}
-	}
+    my @ARGS = @ARGV;
+    my ($option, $param1, $param2);
+    my $got_filename = 0;
+    while (@ARGS) {
+        &debug('Processing argument: '.$option);
+        $option = shift(@ARGS);
+        if (($option eq '-h') || ($option eq '--help')) {
+            &debug('>> printed &usage');
+            &usage();
+            &cleanup;
+            exit(1);
+        }
+        elsif (($option eq '-v') || ($option eq '--version')) {
+            &debug('>> printed &version');
+            &version;
+            &cleanup;
+            exit(1);
+        }
+        elsif (($option eq '-m') || ($option eq '--mute')) {
+            &debug('>> disabled audio');
+            $AUDIBLE = 0;
+        }
+        elsif (($option eq '-s') || ($option eq '--size')) {
+            ($param1, $param2) = (shift(@ARGS), shift(@ARGS));
+            &debug('>> grabbing setspan variables, raw:');
+            &debug('>>   $param1 = '.$param1);
+            &debug('>>   $param2 = '.$param2);
+            $param1 = 80 unless $param1;
+            $param2 = 24 unless $param2;
+            &debug('>> processed setspan vars:');
+            &debug('>>   $param1 = '.$param1);
+            &debug('>>   $param2 = '.$param2);
+            &setspan($param1, $param2);
+        }
+        elsif ($option =~ /^-/) {
+            &usage('Unknown option: '.$option);
+            &cleanup;
+            exit(1);
+        }
+        elsif (not $got_filename) {
+            $got_filename = 1;
+            $current_filename = $option;
+        }
+        else {
+            &usage('Unknown argument: '.$option);
+            &cleanup;
+            exit(1);
+        }
+    }
 }
 
 ########################################################################
 # DEBUGGING
 
 sub debug {
-	print DEBUGFH $_[0]."\n" if ($DEBUG && DEBUGFH);
+    print DEBUGFH $_[0]."\n" if ($DEBUG && DEBUGFH);
 }
 sub debug_open {
-	open(DEBUGFH, '>cadubi_debug.txt') if $DEBUG;
-	&debug('Debug file opened '.(localtime));
+    open(DEBUGFH, '>cadubi_debug.txt') if $DEBUG;
+    &debug('Debug file opened '.(localtime));
 }
 sub debug_close {
-	&debug('Debug file closed '.(localtime));
-	close(DEBUGFH) if DEBUGFH;
+    &debug('Debug file closed '.(localtime));
+    close(DEBUGFH) if DEBUGFH;
 }
 
 
 ########################################################################
 # KEY HANDLING
 sub initKeys {
-	%controlkeys = GetControlChars; #Term::ReadKey
-				# DISCARD
-				# DSUSPEND
-				# EOF
-				# EOL
-				# EOL2
-				# ERASE
-				# ERASEWORD
-				# INTERRUPT
-				# KILL
-				# MIN
-				# QUIT
-				# QUOTENEXT
-				# REPRINT
-				# START
-				# STATUS
-				# STOP
-				# SUSPEND
-				# SWITCH
-				# TIME
-	
-	%keymap = (	'^a' => 1,
-				'^b' => 2,
-				'^d' => 4,
-				'^e' => 5,
-				'^f' => 6,
-				'^g' => 7, #bell
-				'^h' => 8,
-				'^i' => 9,
-				'^k' => 11,
-				'^o' => 15,
-				'^p' => 16,
-				'^r' => 18,
-				'^t' => 20,
-				'^u' => 21,
-				'^v' => 22,
-				'^w' => 23,
-				'^x' => 24,
-				'^y' => 25,
-				'esc' => 27,
-				'del' => 127,
-				'up' => 30,
-				'dn' => 31,
-				'lt' => 28,
-				'rt' => 29,
-				'space' => 32,
-				'cr' => 13,
-				'lf' => 10);
+    %controlkeys = GetControlChars; #Term::ReadKey
+                # DISCARD
+                # DSUSPEND
+                # EOF
+                # EOL
+                # EOL2
+                # ERASE
+                # ERASEWORD
+                # INTERRUPT
+                # KILL
+                # MIN
+                # QUIT
+                # QUOTENEXT
+                # REPRINT
+                # START
+                # STATUS
+                # STOP
+                # SUSPEND
+                # SWITCH
+                # TIME
+
+    %keymap = ( '^a' => 1,
+                '^b' => 2,
+                '^d' => 4,
+                '^e' => 5,
+                '^f' => 6,
+                '^g' => 7, #bell
+                '^h' => 8,
+                '^i' => 9,
+                '^k' => 11,
+                '^o' => 15,
+                '^p' => 16,
+                '^r' => 18,
+                '^t' => 20,
+                '^u' => 21,
+                '^v' => 22,
+                '^w' => 23,
+                '^x' => 24,
+                '^y' => 25,
+                'esc' => 27,
+                'del' => 127,
+                'up' => 30,
+                'dn' => 31,
+                'lt' => 28,
+                'rt' => 29,
+                'space' => 32,
+                'cr' => 13,
+                'lf' => 10);
 }
 
 
 sub HandleKeystroke {
-	my $key = shift;
-	
-	# ansi escape chars, like arrow keys
-	if ($key eq $ESC) {
-		if (ReadKey(0) eq '[') {
-			my $newkey = ReadKey(0);
-			if   	($newkey eq 'A') {&curs_move_up; return 1;}	
-			elsif 	($newkey eq 'B') {&curs_move_dn; return 1;}	
-			elsif	($newkey eq 'C') {&curs_move_rt; return 1;}	
-			elsif	($newkey eq 'D') {&curs_move_lt; return 1;}
-			else {
-				&status("Unknown escape sequence: '".$newkey."'");
-				return 0;
-			}
-		} else {
-			&status("Unknown escape sequence.");
-			return 0;
-		}
-	}
-	
-	# moving around keys (ijkl, IJKL, arrow keys)
-	if ($key eq 'i') {&curs_move_up; return 1;}	
-	if ($key eq 'j') {&curs_move_lt; return 1;}	
-	if ($key eq 'k') {&curs_move_dn; return 1;}	
-	if ($key eq 'l') {&curs_move_rt; return 1;}	
-	if ($key eq 'I') {for (1 .. 5) {&curs_move_up}; return 1;}
-	if ($key eq 'J') {for (1 .. 5) {&curs_move_lt}; return 1;}
-	if ($key eq 'K') {for (1 .. 5) {&curs_move_dn}; return 1;}
-	if ($key eq 'L') {for (1 .. 5) {&curs_move_rt}; return 1;}
+    my $key = shift;
 
-	# exit
-	if (ord($key) == $keymap{'^x'}) {
-		$cadubi_done = 1;
-		return 1;
-	}	
-	
-	# carrage return
-	if ($key eq "\n") {
-		# if we're at the bottom of the workspace, don't return
-		if ($pos[1] >= $workspan[1]) {
-			&curs_move(1, $pos[1]);
-		} else {
-			&curs_move(1, $pos[1]);
-			&curs_move_dn;
-		}
-		return 1;
-	}
+    # ansi escape chars, like arrow keys
+    if ($key eq $ESC) {
+        if (ReadKey(0) eq '[') {
+            my $newkey = ReadKey(0);
+            if      ($newkey eq 'A') {&curs_move_up; return 1;}
+            elsif   ($newkey eq 'B') {&curs_move_dn; return 1;}
+            elsif   ($newkey eq 'C') {&curs_move_rt; return 1;}
+            elsif   ($newkey eq 'D') {&curs_move_lt; return 1;}
+            else {
+                &status("Unknown escape sequence: '".$newkey."'");
+                return 0;
+            }
+        } else {
+            &status("Unknown escape sequence.");
+            return 0;
+        }
+    }
 
-	# paint
-	if ($key eq ' ') {
-		&paintchar;
- 		&curs_move_rt if ($pos[0] < $workspan[0]);
-		return 1;
-	}
-	
-	# erase
-	if ((ord($key) == $keymap{'del'}) || ($key eq '`')) {
-		&curs_move_lt;
-		&erasechar;
-		return 1;
-	}
-	
-	# text mode
-	if ($key eq 't') {
-		my $char = undef;
-		my $oldchar = $charmode[0];
-		my $startingx = $pos[0];
-		&status('Text mode (escape key exits)');
-		while ($char ne "\x1b") {
-			$char = ReadKey(0);
-			# if user hit return, move down a line to starting point
-			if ($char eq "\n") {
-				# if we're at the bottom of the workspace, don't return
-				if ($pos[1] >= $workspan[1]) {
-					&beep;
-				} else {
-					&curs_move($startingx, $pos[1]);
-					&curs_move_dn;
-				}
-			}
-			# no chars < space
-			elsif ($char =~ /[\x00-\x1a\x1c-\x1f]/) {
-				&beep;
-			}
-			# delete, but don't delete past starting x position
-			elsif (ord($char) == $keymap{'del'}) {
-				if ($pos[0] > $startingx) {
-					&curs_move_lt;
-				} else {
-					&beep;
-				}
-				&erasechar;
-			}
-			elsif ($char ne $ESC) {
-				$charmode[0] = $char;
-				&paintchar(@charmode);
-				&curs_move_rt;
-			}
-		}
-		$charmode[0] = $oldchar;
-		return 1;
-	}
-	
-	# paint modes
-	if ($key eq 'p') { # pen character
-		&status('Set pen character:');
-		my $newkey = ReadKey(0);
-		if ($newkey =~ /[\x00-\x1f\x7f]/) {
-			&beep;
-			&status('Unusable pen selection');
-		} else {
-			$charmode[0] = $newkey;
-			&status(">Pen char now: '".$newkey."'");
-		}
-		return 0;
-	}
-	if ($key eq 'g') { # bold
-		$charmode[3] = ($charmode[3]) ? 0 : 1;
-		&status(">Bold enabled") if $charmode[3];
-		&status(">Bold disabled") unless $charmode[3];
-		return 0;
-	}
-	if ($key eq 'v') { # inverse
-		$charmode[4] = ($charmode[4]) ? 0 : 7;
-		&status(">Inverse enabled") if $charmode[4];
-		&status(">Inverse disabled") unless $charmode[4];
-		return 0;
-	}
-	if ($key eq 'W') { # blink (that's W for "why?")
-		$charmode[5] = ($charmode[5]) ? 0 : 5;
-		&status(">Blink enabled") if $charmode[5];
-		&status(">Blink disabled") unless $charmode[5];
-		return 0;
-	}
-	if ($key eq 'f') {
-		&status('Set pen foreground color:');
-		my $newkey = ReadKey(0);
-		   if ($newkey =~ /[nN0]/) {$charmode[2] = $ansi_mode{'normal'}}
-		elsif ($newkey =~ /[wW1]/) {$charmode[2] = $ansi_mode{'fg_white'}}
-		elsif ($newkey =~ /[rR2]/) {$charmode[2] = $ansi_mode{'fg_red'}}
-		elsif ($newkey =~ /[gG3]/) {$charmode[2] = $ansi_mode{'fg_green'}}
-		elsif ($newkey =~ /[yY4]/) {$charmode[2] = $ansi_mode{'fg_yellow'}}
-		elsif ($newkey =~ /[bB5]/) {$charmode[2] = $ansi_mode{'fg_blue'}}
-		elsif ($newkey =~ /[mM6]/) {$charmode[2] = $ansi_mode{'fg_magenta'}}
-		elsif ($newkey =~ /[cC7]/) {$charmode[2] = $ansi_mode{'fg_cyan'}}
-		elsif ($newkey =~ /[kK8]/) {$charmode[2] = $ansi_mode{'fg_black'}}
-		if ($newkey =~ /[NWRGYBMCK012345678]/i) {
-			&status(">Foreground: ".$color_codes{uc($newkey)});
-		} else {
-			&beep;
-			&status("Unknown color selection: '".$newkey."'")
-		}
-		return 0;
-	}
-	if ($key eq 'b') {
-		&status('Set pen background color:');
-		my $newkey = ReadKey(0);
-		   if ($newkey =~ /[nN0]/) {$charmode[1] = $ansi_mode{'normal'}}
-		elsif ($newkey =~ /[wW1]/) {$charmode[1] = $ansi_mode{'bg_white'}}
-		elsif ($newkey =~ /[rR2]/) {$charmode[1] = $ansi_mode{'bg_red'}}
-		elsif ($newkey =~ /[gG3]/) {$charmode[1] = $ansi_mode{'bg_green'}}
-		elsif ($newkey =~ /[yY4]/) {$charmode[1] = $ansi_mode{'bg_yellow'}}
-		elsif ($newkey =~ /[bB5]/) {$charmode[1] = $ansi_mode{'bg_blue'}}
-		elsif ($newkey =~ /[mM6]/) {$charmode[1] = $ansi_mode{'bg_magenta'}}
-		elsif ($newkey =~ /[cC7]/) {$charmode[1] = $ansi_mode{'bg_cyan'}}
-		elsif ($newkey =~ /[kK8]/) {$charmode[1] = $ansi_mode{'bg_black'}}
-		if ($newkey =~ /[NWRGYBMCK012345678]/i) {
-			&status(">Background: ".$color_codes{uc($newkey)});
-		} else {
-			&beep;
-			&status("Unknown color selection: '".$newkey."'")
-		}
-		return 0;
-	}
-	
-	# file i/o
-	if (ord($key) == $keymap{'^r'}) {
-		return &user_readfile;
-	}
-	if (ord($key) == $keymap{'^o'}) {
-		return &user_writefile;
-	}
-	
-	# refresh
-	if (ord($key) == $keymap{'^w'}) { #refresh
-		&refresh();
-		&status('Workspace refreshed');
-		return 1;
-	}
-	
-	# help
-	if (ord($key) == $keymap{'^h'}) { #Help
-		if (-e $HELPFILE) {
-			my @oldmap = @charmap;
-			my @oldpos = @pos;
-			&readfile($HELPFILE);
-			&status('Press a key to continue...', 1);
-			my $temp = ReadKey(0);
-			@charmap = @oldmap;
-			$oldmap = undef;
-			&curs_move(@oldpos);
-			&refresh;
-			&status;
-		} else {
-			&beep;
-			&status("$HELPFILE not available");
-		}
-		return 0;
-	}
+    # moving around keys (ijkl, IJKL, arrow keys)
+    if ($key eq 'i') {&curs_move_up; return 1;}
+    if ($key eq 'j') {&curs_move_lt; return 1;}
+    if ($key eq 'k') {&curs_move_dn; return 1;}
+    if ($key eq 'l') {&curs_move_rt; return 1;}
+    if ($key eq 'I') {for (1 .. 5) {&curs_move_up}; return 1;}
+    if ($key eq 'J') {for (1 .. 5) {&curs_move_lt}; return 1;}
+    if ($key eq 'K') {for (1 .. 5) {&curs_move_dn}; return 1;}
+    if ($key eq 'L') {for (1 .. 5) {&curs_move_rt}; return 1;}
 
-	# other
-	if (ord($key) == $keymap{'^t'}) { # TEST
-		&beep;
-		return 0;
-	}
+    # exit
+    if (ord($key) == $keymap{'^x'}) {
+        $cadubi_done = 1;
+        return 1;
+    }
 
-	# no cigar!
-	&beep;
-	return 0;
+    # carrage return
+    if ($key eq "\n") {
+        # if we're at the bottom of the workspace, don't return
+        if ($pos[1] >= $workspan[1]) {
+            &curs_move(1, $pos[1]);
+        } else {
+            &curs_move(1, $pos[1]);
+            &curs_move_dn;
+        }
+        return 1;
+    }
+
+    # paint
+    if ($key eq ' ') {
+        &paintchar;
+        &curs_move_rt if ($pos[0] < $workspan[0]);
+        return 1;
+    }
+
+    # erase
+    if ((ord($key) == $keymap{'del'}) || ($key eq '`')) {
+        &curs_move_lt;
+        &erasechar;
+        return 1;
+    }
+
+    # text mode
+    if ($key eq 't') {
+        my $char = undef;
+        my $oldchar = $charmode[0];
+        my $startingx = $pos[0];
+        &status('Text mode (escape key exits)');
+        while ($char ne "\x1b") {
+            $char = ReadKey(0);
+            # if user hit return, move down a line to starting point
+            if ($char eq "\n") {
+                # if we're at the bottom of the workspace, don't return
+                if ($pos[1] >= $workspan[1]) {
+                    &beep;
+                } else {
+                    &curs_move($startingx, $pos[1]);
+                    &curs_move_dn;
+                }
+            }
+            # no chars < space
+            elsif ($char =~ /[\x00-\x1a\x1c-\x1f]/) {
+                &beep;
+            }
+            # delete, but don't delete past starting x position
+            elsif (ord($char) == $keymap{'del'}) {
+                if ($pos[0] > $startingx) {
+                    &curs_move_lt;
+                } else {
+                    &beep;
+                }
+                &erasechar;
+            }
+            elsif ($char ne $ESC) {
+                $charmode[0] = $char;
+                &paintchar(@charmode);
+                &curs_move_rt;
+            }
+        }
+        $charmode[0] = $oldchar;
+        return 1;
+    }
+
+    # paint modes
+    if ($key eq 'p') { # pen character
+        &status('Set pen character:');
+        my $newkey = ReadKey(0);
+        if ($newkey =~ /[\x00-\x1f\x7f]/) {
+            &beep;
+            &status('Unusable pen selection');
+        } else {
+            $charmode[0] = $newkey;
+            &status(">Pen char now: '".$newkey."'");
+        }
+        return 0;
+    }
+    if ($key eq 'g') { # bold
+        $charmode[3] = ($charmode[3]) ? 0 : 1;
+        &status(">Bold enabled") if $charmode[3];
+        &status(">Bold disabled") unless $charmode[3];
+        return 0;
+    }
+    if ($key eq 'v') { # inverse
+        $charmode[4] = ($charmode[4]) ? 0 : 7;
+        &status(">Inverse enabled") if $charmode[4];
+        &status(">Inverse disabled") unless $charmode[4];
+        return 0;
+    }
+    if ($key eq 'W') { # blink (that's W for "why?")
+        $charmode[5] = ($charmode[5]) ? 0 : 5;
+        &status(">Blink enabled") if $charmode[5];
+        &status(">Blink disabled") unless $charmode[5];
+        return 0;
+    }
+    if ($key eq 'f') {
+        &status('Set pen foreground color:');
+        my $newkey = ReadKey(0);
+           if ($newkey =~ /[nN0]/) {$charmode[2] = $ansi_mode{'normal'}}
+        elsif ($newkey =~ /[wW1]/) {$charmode[2] = $ansi_mode{'fg_white'}}
+        elsif ($newkey =~ /[rR2]/) {$charmode[2] = $ansi_mode{'fg_red'}}
+        elsif ($newkey =~ /[gG3]/) {$charmode[2] = $ansi_mode{'fg_green'}}
+        elsif ($newkey =~ /[yY4]/) {$charmode[2] = $ansi_mode{'fg_yellow'}}
+        elsif ($newkey =~ /[bB5]/) {$charmode[2] = $ansi_mode{'fg_blue'}}
+        elsif ($newkey =~ /[mM6]/) {$charmode[2] = $ansi_mode{'fg_magenta'}}
+        elsif ($newkey =~ /[cC7]/) {$charmode[2] = $ansi_mode{'fg_cyan'}}
+        elsif ($newkey =~ /[kK8]/) {$charmode[2] = $ansi_mode{'fg_black'}}
+        if ($newkey =~ /[NWRGYBMCK012345678]/i) {
+            &status(">Foreground: ".$color_codes{uc($newkey)});
+        } else {
+            &beep;
+            &status("Unknown color selection: '".$newkey."'")
+        }
+        return 0;
+    }
+    if ($key eq 'b') {
+        &status('Set pen background color:');
+        my $newkey = ReadKey(0);
+           if ($newkey =~ /[nN0]/) {$charmode[1] = $ansi_mode{'normal'}}
+        elsif ($newkey =~ /[wW1]/) {$charmode[1] = $ansi_mode{'bg_white'}}
+        elsif ($newkey =~ /[rR2]/) {$charmode[1] = $ansi_mode{'bg_red'}}
+        elsif ($newkey =~ /[gG3]/) {$charmode[1] = $ansi_mode{'bg_green'}}
+        elsif ($newkey =~ /[yY4]/) {$charmode[1] = $ansi_mode{'bg_yellow'}}
+        elsif ($newkey =~ /[bB5]/) {$charmode[1] = $ansi_mode{'bg_blue'}}
+        elsif ($newkey =~ /[mM6]/) {$charmode[1] = $ansi_mode{'bg_magenta'}}
+        elsif ($newkey =~ /[cC7]/) {$charmode[1] = $ansi_mode{'bg_cyan'}}
+        elsif ($newkey =~ /[kK8]/) {$charmode[1] = $ansi_mode{'bg_black'}}
+        if ($newkey =~ /[NWRGYBMCK012345678]/i) {
+            &status(">Background: ".$color_codes{uc($newkey)});
+        } else {
+            &beep;
+            &status("Unknown color selection: '".$newkey."'")
+        }
+        return 0;
+    }
+
+    # file i/o
+    if (ord($key) == $keymap{'^r'}) {
+        return &user_readfile;
+    }
+    if (ord($key) == $keymap{'^o'}) {
+        return &user_writefile;
+    }
+
+    # refresh
+    if (ord($key) == $keymap{'^w'}) { #refresh
+        &refresh();
+        &status('Workspace refreshed');
+        return 1;
+    }
+
+    # help
+    if (ord($key) == $keymap{'^h'}) { #Help
+        if (-e $HELPFILE) {
+            my @oldmap = @charmap;
+            my @oldpos = @pos;
+            &readfile($HELPFILE);
+            &status('Press a key to continue...', 1);
+            my $temp = ReadKey(0);
+            @charmap = @oldmap;
+            $oldmap = undef;
+            &curs_move(@oldpos);
+            &refresh;
+            &status;
+        } else {
+            &beep;
+            &status("$HELPFILE not available");
+        }
+        return 0;
+    }
+
+    # other
+    if (ord($key) == $keymap{'^t'}) { # TEST
+        &beep;
+        return 0;
+    }
+
+    # no cigar!
+    &beep;
+    return 0;
 }
 
 
 ########################################################################
 # FILE SUBROUTINES
 
-sub readfile { 
-	# pass it a filename as first argument, reads a file into
-	# the @charmap array
-	my $filepath = shift;
-	my @oldpos = @pos;
-	my @oldcharmode = @charmode;
-	my ($char, $buf, $command, @nums);
-	my $x = 1;
-	my $y = 1;
-	open(IN, '<'.$filepath);
-	unless (IN) {
-		return 0;
-	}
-	@charmap = undef;
-	&debug('&readfile parsing:');
-	PARSE: while (not eof(IN)) {
-		# MAGICAL ANSI ESCAPE SEQUENCE PARSER
-		# This parses almost all the escape sequences I could get documentation on.
-		# Even though, other than the mode change sequences, they will hardly ever 
-		# appear in an ascii art file, it's good to be prepared.
-		#
-		# I've parsed all EXCEPT this format:
-		#    ESC[#;"string";#p
-		#
-		$char = ReadKey(0, IN);
-		&debug('>> "'.$char.'"');
-		# exit if we've found more lines than max
-		if ($y > $workspan[1]) {
-			&debug('>> '.$y.' is greater than '.$workspan[1]);
-			last PARSE;
-		}
-		# if we've hit a newline in the file
-		if ($char eq "\n") {
-			&debug('>> newline');
-			$y++;
-			$x = 1;
-		}
-		# if we've found more chars on the line than max
-		elsif ($x > $workspan[0]) {
-			&debug('>> maximum chars hit');
-			$y++;
-			$x = 1;
-			# read until newline
-			do { 
-				$char = ReadKey(0, IN);
-			} until ($char eq "\n");
-		}
-		elsif ($char eq $ESC) { # escape sequence
-			$char = ReadKey(0, IN);
-			if ($char eq '[') {
-				$char = ReadKey(0, IN);
-				# These escape sequence types don't need support
-				if ($char =~ /[usK]/) {
-					# example: ESC[u
-				}
-				# Double-char unsupported escape sequences
-				elsif ($char =~ /[2]/) {
-					# example: ESC[2J
-					$char = ReadKey(0, IN);
-				}
-				# Multi-numbered wierd with digits
-				elsif ($char =~ /[\=\?]/) {
-					# example: ESC[=21;29h
-					do {
-						$char = ReadKey(0, IN);
-					} until (not ($char =~ /[\d\;]/));
-				}
-				# Eeek! Keyboard reassignment!
-				elsif ($char eq '"') {
-					# example: ESC["string"p
-					$char = ReadKey(0, IN); # get first "
-					do {
-						$char = ReadKey(0, IN); # get string"
-					} until ($char eq '"');
-					$char = ReadKey(0, IN); # get final p
-				}
-				# Oh great. We've hit digits.
-				elsif ($char =~ /\d/) {
-					# example: ESC[31;7m
-					$buf = $char;
-					# read until we hit a non-digit or non-; char
-					do {
-						$char = ReadKey(0, IN);
-						$buf .= $char;
-					} until (not ($char =~ /[\d\;]/));
-					# $command is the letter following the number series
-					$command = substr($buf,-1,1);
-					# $buf ends up being a ; delimeted list of numbers
-					$buf = substr($buf,0,-1);
-					# @nums is a list the numbers
-					@nums = split(/\;/, $buf);
-					&debug(">> Sequence:");
-					&debug(">>   -> \$command = $command");
-					&debug(">>   -> \$buf     = $bug");
-					&debug(">>   -> \@nums = ");
-					foreach (@nums) {&debug(">>   ->  !- $_")}
-					# make sure these numbers are a mode change
-					if ($command eq 'm') {
-						# did we get a set-to-normal mode? (ESC[0m])
-						if (grep(/0/, @nums)) {
-							@charmode = (' ',0,0,0,0,0,'');
-						# no, we got a regular mode change
-						} else {
-							foreach (@nums) {
-								$charmode[1] = $_ if (($_ >= 40) && ($_ <= 47));
-								$charmode[2] = $_ if (($_ >= 30) && ($_ <= 37));
-								$charmode[3] = $_ if ($_ == 1);
-								$charmode[4] = $_ if ($_ == 7);
-								$charmode[5] = $_ if ($_ == 5);
-							}
-						}
-					}
-				}
-			}
-		}
-		else {
-			$charmode[0] = $char;
-			@charmap->[$x][$y] = [@charmode];
-			$x++;
-		}
-	}
-	close(IN);
-	&refresh;
-	&curs_move(@oldpos);
-	@charmode = @oldcharmode;
-	return 1;
+sub readfile {
+    # pass it a filename as first argument, reads a file into
+    # the @charmap array
+    my $filepath = shift;
+    my @oldpos = @pos;
+    my @oldcharmode = @charmode;
+    my ($char, $buf, $command, @nums);
+    my $x = 1;
+    my $y = 1;
+    open(IN, '<'.$filepath);
+    unless (IN) {
+        return 0;
+    }
+    @charmap = undef;
+    &debug('&readfile parsing:');
+    PARSE: while (not eof(IN)) {
+        # MAGICAL ANSI ESCAPE SEQUENCE PARSER
+        # This parses almost all the escape sequences I could get documentation on.
+        # Even though, other than the mode change sequences, they will hardly ever
+        # appear in an ascii art file, it's good to be prepared.
+        #
+        # I've parsed all EXCEPT this format:
+        #    ESC[#;"string";#p
+        #
+        $char = ReadKey(0, IN);
+        &debug('>> "'.$char.'"');
+        # exit if we've found more lines than max
+        if ($y > $workspan[1]) {
+            &debug('>> '.$y.' is greater than '.$workspan[1]);
+            last PARSE;
+        }
+        # if we've hit a newline in the file
+        if ($char eq "\n") {
+            &debug('>> newline');
+            $y++;
+            $x = 1;
+        }
+        # if we've found more chars on the line than max
+        elsif ($x > $workspan[0]) {
+            &debug('>> maximum chars hit');
+            $y++;
+            $x = 1;
+            # read until newline
+            do {
+                $char = ReadKey(0, IN);
+            } until ($char eq "\n");
+        }
+        elsif ($char eq $ESC) { # escape sequence
+            $char = ReadKey(0, IN);
+            if ($char eq '[') {
+                $char = ReadKey(0, IN);
+                # These escape sequence types don't need support
+                if ($char =~ /[usK]/) {
+                    # example: ESC[u
+                }
+                # Double-char unsupported escape sequences
+                elsif ($char =~ /[2]/) {
+                    # example: ESC[2J
+                    $char = ReadKey(0, IN);
+                }
+                # Multi-numbered wierd with digits
+                elsif ($char =~ /[\=\?]/) {
+                    # example: ESC[=21;29h
+                    do {
+                        $char = ReadKey(0, IN);
+                    } until (not ($char =~ /[\d\;]/));
+                }
+                # Eeek! Keyboard reassignment!
+                elsif ($char eq '"') {
+                    # example: ESC["string"p
+                    $char = ReadKey(0, IN); # get first "
+                    do {
+                        $char = ReadKey(0, IN); # get string"
+                    } until ($char eq '"');
+                    $char = ReadKey(0, IN); # get final p
+                }
+                # Oh great. We've hit digits.
+                elsif ($char =~ /\d/) {
+                    # example: ESC[31;7m
+                    $buf = $char;
+                    # read until we hit a non-digit or non-; char
+                    do {
+                        $char = ReadKey(0, IN);
+                        $buf .= $char;
+                    } until (not ($char =~ /[\d\;]/));
+                    # $command is the letter following the number series
+                    $command = substr($buf,-1,1);
+                    # $buf ends up being a ; delimeted list of numbers
+                    $buf = substr($buf,0,-1);
+                    # @nums is a list the numbers
+                    @nums = split(/\;/, $buf);
+                    &debug(">> Sequence:");
+                    &debug(">>   -> \$command = $command");
+                    &debug(">>   -> \$buf     = $bug");
+                    &debug(">>   -> \@nums = ");
+                    foreach (@nums) {&debug(">>   ->  !- $_")}
+                    # make sure these numbers are a mode change
+                    if ($command eq 'm') {
+                        # did we get a set-to-normal mode? (ESC[0m])
+                        if (grep(/0/, @nums)) {
+                            @charmode = (' ',0,0,0,0,0,'');
+                        # no, we got a regular mode change
+                        } else {
+                            foreach (@nums) {
+                                $charmode[1] = $_ if (($_ >= 40) && ($_ <= 47));
+                                $charmode[2] = $_ if (($_ >= 30) && ($_ <= 37));
+                                $charmode[3] = $_ if ($_ == 1);
+                                $charmode[4] = $_ if ($_ == 7);
+                                $charmode[5] = $_ if ($_ == 5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            $charmode[0] = $char;
+            @charmap->[$x][$y] = [@charmode];
+            $x++;
+        }
+    }
+    close(IN);
+    &refresh;
+    &curs_move(@oldpos);
+    @charmode = @oldcharmode;
+    return 1;
 }
 
 sub writefile {
-	# pass it a filename, writes the entire @charmap to file, readable by
-	# cat, more, less, whatever.
-	my $filepath = shift;
-	my $out = undef;
-	my ($thisline, $thischar);
-	my $inital_space = 1;
-	my ($x, $y, $i, $d, $max, @newmode, @oldmode, @outlines);
-	for ($y=1; $y<=$workspan[1]; $y++) {
-		# fresh new line to work with
-		@oldmode = qw(99 99 99 99 99 99);
-		$thisline = undef;
-		for ($x=1; $x<=$workspan[0]; $x++) {
-			# set @newmode to the mode of the char we're about to write
-			@newmode = @{$charmap[$x][$y]};
-			# is our new char mode different from our old one?
-			$d = 0;
-			$max = ($#oldmode > $#newmode) ? $#oldmode : $#newmode;
-			for($i=1; $i<=$max; $i++) {
-				# notice $i starts at one so we skip the character
-				$d++ if ($oldmode[$i] != $newmode[$i]);
-			}
-			# if our new char mode is indeed different, add a normal
-			# mode sequence and our new mode and char. else, just add
-			# the char.
-			if ($d) {
-				$thisline .= $ESC.'[0m'.substr(&printchar(@{$charmap[$x][$y]}),0,-4);
-			} else {
-				# make sure it's not just a space
-				if (defined(@{$charmap[$x][$y]})) {
-					$thisline .= $newmode[0];
-				} else {
-					$thisline .= ' ';
-				}
-			}
-			# now make @newmode our @oldmode
-			@oldmode = @newmode;
-		}
-		# kill trailing whitespace on single lines
-		$thisline =~ s/(\s+)$//;
-		# make sure each line ends with a normal mode sequence
-		push(@outlines, $thisline.$ESC."[0m\n");
-	}
-	open(OUT, ">$filepath") or return 0;
-	# kill trailing lines
-	$x = 0;
-	for ($i=$#outlines; $i>=0; $i--) {
-		unless (($outlines[$i] eq $ESC.'[0m'.$ESC."[0m\n") && (not $x)) {
-			$out = $outlines[$i].$out;
-			$x++;
-		}
-	}
-	print OUT $out;
-	close(OUT);
-	if ($out) {
-		return length($out);
-	} else {
-		# if no bytes were written, we'll return 'zero'
-		return 'zero';
-	}
+    # pass it a filename, writes the entire @charmap to file, readable by
+    # cat, more, less, whatever.
+    my $filepath = shift;
+    my $out = undef;
+    my ($thisline, $thischar);
+    my $inital_space = 1;
+    my ($x, $y, $i, $d, $max, @newmode, @oldmode, @outlines);
+    for ($y=1; $y<=$workspan[1]; $y++) {
+        # fresh new line to work with
+        @oldmode = qw(99 99 99 99 99 99);
+        $thisline = undef;
+        for ($x=1; $x<=$workspan[0]; $x++) {
+            # set @newmode to the mode of the char we're about to write
+            @newmode = @{$charmap[$x][$y]};
+            # is our new char mode different from our old one?
+            $d = 0;
+            $max = ($#oldmode > $#newmode) ? $#oldmode : $#newmode;
+            for($i=1; $i<=$max; $i++) {
+                # notice $i starts at one so we skip the character
+                $d++ if ($oldmode[$i] != $newmode[$i]);
+            }
+            # if our new char mode is indeed different, add a normal
+            # mode sequence and our new mode and char. else, just add
+            # the char.
+            if ($d) {
+                $thisline .= $ESC.'[0m'.substr(&printchar(@{$charmap[$x][$y]}),0,-4);
+            } else {
+                # make sure it's not just a space
+                if (defined(@{$charmap[$x][$y]})) {
+                    $thisline .= $newmode[0];
+                } else {
+                    $thisline .= ' ';
+                }
+            }
+            # now make @newmode our @oldmode
+            @oldmode = @newmode;
+        }
+        # kill trailing whitespace on single lines
+        $thisline =~ s/(\s+)$//;
+        # make sure each line ends with a normal mode sequence
+        push(@outlines, $thisline.$ESC."[0m\n");
+    }
+    open(OUT, ">$filepath") or return 0;
+    # kill trailing lines
+    $x = 0;
+    for ($i=$#outlines; $i>=0; $i--) {
+        unless (($outlines[$i] eq $ESC.'[0m'.$ESC."[0m\n") && (not $x)) {
+            $out = $outlines[$i].$out;
+            $x++;
+        }
+    }
+    print OUT $out;
+    close(OUT);
+    if ($out) {
+        return length($out);
+    } else {
+        # if no bytes were written, we'll return 'zero'
+        return 'zero';
+    }
 }
 
 sub user_writefile {
-	my ($filename, $reply, $bytes_written);
-	my $file_exists = 1;
-	my @oldpos = @pos;
-	while ($file_exists) {
-		$filename = &get_user_string('File name to write:', undef, $current_filename);
-		# user canceled
-		return 1 unless defined($filename);
-		# check if file exists
-		if (-e $filename) {
-			&status('File already exists. Overwrite? (y/n)',1);
-			$reply = uc(ReadKey(0));
-			$file_exists = 0 if ($reply eq 'Y');
-			return 1 if ($reply eq $ESC);
-			&status();
-		} else {
-			$file_exists = 0;
-		}
-	}
-	$current_filename = $filename;
-	$bytes_written = &writefile($filename);
-	if ($bytes_written) {
-		&status("Wrote '".$filename."' (".$bytes_written.' bytes)');
-	} else {
-		&beep;
-		&status("Couldn't write file '".$filename."': ".$!);
-	}
-	&curs_move(@oldpos);
-	return 0;
+    my ($filename, $reply, $bytes_written);
+    my $file_exists = 1;
+    my @oldpos = @pos;
+    while ($file_exists) {
+        $filename = &get_user_string('File name to write:', undef, $current_filename);
+        # user canceled
+        return 1 unless defined($filename);
+        # check if file exists
+        if (-e $filename) {
+            &status('File already exists. Overwrite? (y/n)',1);
+            $reply = uc(ReadKey(0));
+            $file_exists = 0 if ($reply eq 'Y');
+            return 1 if ($reply eq $ESC);
+            &status();
+        } else {
+            $file_exists = 0;
+        }
+    }
+    $current_filename = $filename;
+    $bytes_written = &writefile($filename);
+    if ($bytes_written) {
+        &status("Wrote '".$filename."' (".$bytes_written.' bytes)');
+    } else {
+        &beep;
+        &status("Couldn't write file '".$filename."': ".$!);
+    }
+    &curs_move(@oldpos);
+    return 0;
 }
 
 sub user_readfile {
-	my $filename;
-	if ($_[0]) {
-		$filename = $_[0];
-	} else {
-		$filename = &get_user_string('File name to read:', undef, $current_filename);
-	}
-	# user canceled
-	return 1 unless defined($filename);
-	if (-e $filename) {
-		if (&readfile($filename)) {
-			&status("Read file '".$filename."'");
-		} else {
-			&status("Couldn't read file '".$filename."': ".$!);
-		}
-	} else {
-		&status("File '".$filename."' doesn't exist.");
-	}
-	return 0;
+    my $filename;
+    if ($_[0]) {
+        $filename = $_[0];
+    } else {
+        $filename = &get_user_string('File name to read:', undef, $current_filename);
+    }
+    # user canceled
+    return 1 unless defined($filename);
+    if (-e $filename) {
+        if (&readfile($filename)) {
+            &status("Read file '".$filename."'");
+        } else {
+            &status("Couldn't read file '".$filename."': ".$!);
+        }
+    } else {
+        &status("File '".$filename."' doesn't exist.");
+    }
+    return 0;
 }
 
 ########################################################################
