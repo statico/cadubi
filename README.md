@@ -12,6 +12,12 @@ text modes, such as background and foreground colors, bold, and
 inverse. This text art, commonly called "ASCII art," is used in
 various places such as online BBSes, email and login prompts.
 
+## Screen shots
+
+![catfile](https://raw.githubusercontent.com/statico/cadubi/master/screenshots/catfile.png)
+![edit](https://raw.githubusercontent.com/statico/cadubi/master/screenshots/edit.png)
+![help](https://raw.githubusercontent.com/statico/cadubi/master/screenshots/help.png)
+
 ## Installation
 
 * [Homebrew](http://brew.sh/): `brew install cadubi`
