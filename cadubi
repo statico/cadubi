@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
-eval 'exec /usr/local/stow/perl-5.8.x/bin/perl -w -S $0 ${1+"$@"}'
-    if 0; # not running under some shell
+eval 'case $# in 0) exec /usr/bin/perl -S "$0";; *) exec /usr/bin/perl -S "$0" "$@";; esac'
+    if 0;
 
 $VERSION = '1.3.1';
 
