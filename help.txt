@@ -14,7 +14,7 @@
 [0m[44;34;1mo[0m     [0m[1m W[0m Toggle Pen Blink      [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
 [0m[44;34;1mo[0m     [0m[1m^r[0m Read File In          [0m[44;34;1mooooooooooooooooooooooooooooooooooooooooooooooooo[0m
 [0m[44;34;1mo[0m     [0m[1m^o[0m Write File Out        [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
-[0m[44;34;1mo[0m     [0m[1m^x[0m Exit                  [0m[44;34;1mo[0m [0m[31;1mWebsite:[0m http://langworth.com/CadubiProject   [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m^x[0m Exit                  [0m[44;34;1mo[0m [0m[31;1mWebsite:[0m https://github.com/statico/cadubi    [0m[44;34;1mo[0m
 [0m[44;34;1mo[0m     [0m[1m^w[0m Refresh Screen        [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
 [0m[44;34;1mo[0m     [0m[1m `[0m Erase (also)          [0m[44;34;1mo[0m [0m[31;1m       [0m                                       [0m[44;34;1mo[0m
 [0m[44;34;1mo[0m                              [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
