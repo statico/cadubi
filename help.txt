@@ -1,0 +1,23 @@
+[0m[44;34;1moooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo[0m
+[0m[44;34;1mo[0m [0m[31;1mcadubi Keys[0m                  [0m[44;34;1mo[0m [0m[31;1mColor Codes[0m                                   [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m                              [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m   [0m[1mijkl[0m Move                  [0m[44;34;1mo[0m [0m[1mKey    FG  BG  Bold  All[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m   [0m[1mIJKL[0m Move Quick            [0m[44;34;1mo[0m n / 0  X       [0m[1mX[0m     [0m[1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m  [0m[1mspace[0m Paint with Pen        [0m[44;34;1mo[0m w / 1  [0m[37mX[0m   [0m[47;37m [0m   [0m[37;1mX[0m     [0m[47;37;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m    [0m[1mdel[0m Erase                 [0m[44;34;1mo[0m r / 2  [0m[31mX[0m   [0m[41;31m [0m   [0m[31;1mX[0m     [0m[41;31;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m      [0m[1mp[0m Set Pen Character     [0m[44;34;1mo[0m g / 3  [0m[32mX[0m   [0m[42;32m [0m   [0m[32;1mX[0m     [0m[42;32;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m g[0m Toggle Pen Bold       [0m[44;34;1mo[0m y / 4  [0m[33mX[0m   [0m[43m [0m   [0m[33;1mX[0m     [0m[43;33;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m v[0m Toggle Pen Inverse    [0m[44;34;1mo[0m b / 5  [0m[34mX[0m   [0m[44m [0m   [0m[34;1mX[0m     [0m[44;34;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m f[0m Set Pen Foreground    [0m[44;34;1mo[0m m / 6  [0m[35mX[0m   [0m[45m [0m   [0m[35;1mX[0m     [0m[45;35;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m b[0m Set Pen Background    [0m[44;34;1mo[0m c / 7  [0m[36mX[0m   [0m[46m [0m   [0m[36;1mX[0m     [0m[46;36;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m t[0m Text Mode             [0m[44;34;1mo[0m k / 8  [0m[30mX[0m   [0m[40m [0m   [0m[30;1mX[0m     [0m[40;30;1mXXX[0m                      [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m W[0m Toggle Pen Blink      [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m^r[0m Read File In          [0m[44;34;1mooooooooooooooooooooooooooooooooooooooooooooooooo[0m
+[0m[44;34;1mo[0m     [0m[1m^o[0m Write File Out        [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m^x[0m Exit                  [0m[44;34;1mo[0m [0m[31;1mWebsite:[0m http://langworth.com/CadubiProject   [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m^w[0m Refresh Screen        [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m     [0m[1m `[0m Erase (also)          [0m[44;34;1mo[0m [0m[31;1m       [0m                                       [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m                              [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m                              [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1mo[0m                              [0m[44;34;1mo[0m                                               [0m[44;34;1mo[0m
+[0m[44;34;1moooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo[0m
