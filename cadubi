@@ -338,14 +338,14 @@ sub printchar { # returns a string with the current ANSI mode and the character
 }
 
 sub paintchar { # prints the char on screen and saves it to @charmap
-    @charmap->[$pos[0]][$pos[1]] = [@charmode];
+    $charmap->[$pos[0]][$pos[1]] = [@charmode];
     print &printchar(@charmode);
     &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
 sub erasechar { # saves blank char to @charmap, prints
-    @charmap->[$pos[0]][$pos[1]] = undef;
-    print &printchar(@{@charmap->[$pos[0]][$pos[1]]});
+    $charmap->[$pos[0]][$pos[1]] = undef;
+    print &printchar(@{$charmap->[$pos[0]][$pos[1]]});
     &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
@@ -839,7 +839,7 @@ sub readfile {
         }
         else {
             $charmode[0] = $char;
-            @charmap->[$x][$y] = [@charmode];
+            $charmap->[$x][$y] = [@charmode];
             $x++;
         }
     }
@@ -879,7 +879,7 @@ sub writefile {
                 $thisline .= $ESC.'[0m'.substr(&printchar(@{$charmap[$x][$y]}),0,-4);
             } else {
                 # make sure it's not just a space
-                if (defined(@{$charmap[$x][$y]})) {
+                if (@{$charmap[$x][$y]}) {
                     $thisline .= $newmode[0];
                 } else {
                     $thisline .= ' ';
