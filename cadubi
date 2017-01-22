@@ -3,7 +3,7 @@
 eval 'case $# in 0) exec /usr/bin/perl -S "$0";; *) exec /usr/bin/perl -S "$0" "$@";; esac'
     if 0;
 
-$VERSION = '1.3.3';
+$VERSION = '1.3.4';
 
 ########################################################################
 # MAIN LOOP
