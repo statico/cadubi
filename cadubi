@@ -26,7 +26,7 @@ $AUDIBLE = 1;           # beep unless -m, --mute, or configured in 'cadubi'
 @pos = (1,1);           # position of cursor (x,y)
 @totalspan = undef;     # width & height of console (x,y)
 @workspan = undef;      # same as $totalspace, but y-1
-@charmap = undef;       # a 3D array:
+$charmap = undef;       # a 3D array:
                         #       [col]   [row]   [(0 => char to paint with
                         #                         1 => bg color
                         #                         2 => fg color
@@ -306,8 +306,8 @@ sub refresh {
     my ($x, $y);
     for ($y=1; $y<=$workspan[1]; $y++) {
         for ($x=1; $x<=$workspan[0]; $x++) {
-            if (@{$charmap[$x][$y]}) {
-                print &printchar(@{$charmap[$x][$y]});
+            if ($charmap->[$x][$y]) {
+                print &printchar(@{$charmap->[$x][$y]});
             } else {
                 print ' ';
             }
@@ -337,15 +337,15 @@ sub printchar { # returns a string with the current ANSI mode and the character
     return $out;
 }
 
-sub paintchar { # prints the char on screen and saves it to @charmap
+sub paintchar { # prints the char on screen and saves it to $charmap
     $charmap->[$pos[0]][$pos[1]] = [@charmode];
     print &printchar(@charmode);
     &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
-sub erasechar { # saves blank char to @charmap, prints
+sub erasechar { # saves blank char to $charmap, prints
     $charmap->[$pos[0]][$pos[1]] = undef;
-    print &printchar(@{$charmap->[$pos[0]][$pos[1]]});
+    print &printchar({$charmap->[$pos[0]][$pos[1]]});
     &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
@@ -690,12 +690,12 @@ sub HandleKeystroke {
     # help
     if (ord($key) == $keymap{'^h'}) { #Help
         if (-e $HELPFILE) {
-            my @oldmap = @charmap;
+            my $oldmap = $charmap;
             my @oldpos = @pos;
             &readfile($HELPFILE);
             &status('Press a key to continue...', 1);
             my $temp = ReadKey(0);
-            @charmap = @oldmap;
+            $charmap = $oldmap;
             $oldmap = undef;
             &curs_move(@oldpos);
             &refresh;
@@ -724,7 +724,7 @@ sub HandleKeystroke {
 
 sub readfile {
     # pass it a filename as first argument, reads a file into
-    # the @charmap array
+    # the $charmap array
     my $filepath = shift;
     my @oldpos = @pos;
     my @oldcharmode = @charmode;
@@ -735,7 +735,7 @@ sub readfile {
     unless (IN) {
         return 0;
     }
-    @charmap = undef;
+    $charmap = undef;
     &debug('&readfile parsing:');
     PARSE: while (not eof(IN)) {
         # MAGICAL ANSI ESCAPE SEQUENCE PARSER
@@ -851,7 +851,7 @@ sub readfile {
 }
 
 sub writefile {
-    # pass it a filename, writes the entire @charmap to file, readable by
+    # pass it a filename, writes the entire $charmap to file, readable by
     # cat, more, less, whatever.
     my $filepath = shift;
     my $out = undef;
@@ -864,7 +864,7 @@ sub writefile {
         $thisline = undef;
         for ($x=1; $x<=$workspan[0]; $x++) {
             # set @newmode to the mode of the char we're about to write
-            @newmode = @{$charmap[$x][$y]};
+            @newmode = @{$charmap->[$x][$y]};
             # is our new char mode different from our old one?
             $d = 0;
             $max = ($#oldmode > $#newmode) ? $#oldmode : $#newmode;
@@ -876,10 +876,10 @@ sub writefile {
             # mode sequence and our new mode and char. else, just add
             # the char.
             if ($d) {
-                $thisline .= $ESC.'[0m'.substr(&printchar(@{$charmap[$x][$y]}),0,-4);
+                $thisline .= $ESC.'[0m'.substr(&printchar(@{$charmap->[$x][$y]}),0,-4);
             } else {
                 # make sure it's not just a space
-                if (@{$charmap[$x][$y]}) {
+                if ($charmap->[$x][$y]) {
                     $thisline .= $newmode[0];
                 } else {
                     $thisline .= ' ';
