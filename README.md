@@ -14,9 +14,7 @@ various places such as online BBSes, email and login prompts.
 
 ## Screen shots
 
-<img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/catfile.png" width="150"/>
-<img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/edit.png" width="150"/>
-<img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/help.png" width="150"/>
+<img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/catfile.png" width="150"/> <img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/edit.png" width="150"/> <img src="https://raw.githubusercontent.com/statico/cadubi/master/screenshots/help.png" width="150"/>
 
 ## Installation
 
