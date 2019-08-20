@@ -345,7 +345,7 @@ sub paintchar { # prints the char on screen and saves it to $charmap
 
 sub erasechar { # saves blank char to $charmap, prints
     $charmap->[$pos[0]][$pos[1]] = undef;
-    print &printchar({$charmap->[$pos[0]][$pos[1]]});
+    print &printchar(($charmap->[$pos[0]][$pos[1]]));
     &curs_move(@pos); #print moves to the right on us, without asking. the nerve!
 }
 
