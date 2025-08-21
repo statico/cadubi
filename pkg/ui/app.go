@@ -10,6 +10,14 @@ import (
 	"github.com/cadubi/cadubi/pkg/commands"
 )
 
+// Define adaptive colors following Charm's patterns
+var (
+	borderColor = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both
+	statusColor = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both  
+	cursorBg    = lipgloss.AdaptiveColor{Light: "0", Dark: "7"}           // Dark on light, light on dark
+	cursorFg    = lipgloss.AdaptiveColor{Light: "15", Dark: "0"}          // Light on light, dark on dark
+)
+
 // App represents the main application state
 type App struct {
 	canvas      *canvas.Canvas
@@ -350,6 +358,7 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle help modal
 		a.showHelp = !a.showHelp
 	
+	
 	case "escape", "esc":
 		// Close help modal if open
 		if a.showHelp {
@@ -458,6 +467,7 @@ func (a *App) cyclePenColor() {
 	a.setPenColor(colors[nextIndex])
 }
 
+
 // getHelpTabs returns all help tab titles
 func (a *App) getHelpTabs() []string {
 	return []string{"Movement", "Drawing", "Pen Tools", "Layers", "History", "General"}
@@ -534,14 +544,14 @@ func (a *App) getHelpContent() string {
 // View renders the current application state
 func (a *App) View() string {
 	
-	// Create styles
+	// Create styles using adaptive colors
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#6B7280")).
+		BorderForeground(borderColor).
 		Padding(0, 1)
 	
 	statusStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#6B7280")).
+		Foreground(statusColor).
 		Margin(0, 1)
 	
 	// Calculate canvas viewport dimensions
@@ -593,7 +603,7 @@ func (a *App) View() string {
 	
 	// Instructions
 	instructions := statusStyle.Render(
-		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v",
+		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v │ Help: ?",
 	)
 	
 	// Create the main view
@@ -771,8 +781,8 @@ func (a *App) renderCanvasWithCursor(width, height int) string {
 		// Add cursor styling
 		if cursorX < len(runes) {
 			cursorStyle := lipgloss.NewStyle().
-				Background(lipgloss.Color("7")).
-				Foreground(lipgloss.Color("0"))
+				Background(cursorBg).
+				Foreground(cursorFg)
 			
 			cursorChar := runes[cursorX]
 			if cursorChar == ' ' {
