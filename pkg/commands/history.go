@@ -112,7 +112,7 @@ func (ch *CommandHistory) GetHistory() []string {
 	for i, cmd := range ch.commands {
 		marker := "  "
 		if i <= ch.currentPos {
-			marker = "✓ "
+			marker = "● "
 		}
 		history[i] = marker + cmd.Description()
 	}

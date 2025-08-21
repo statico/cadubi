@@ -23,6 +23,7 @@ type App struct {
 	viewportY   int
 	currentTool string
 	showHelp    bool
+	helpTab     int
 }
 
 // LayerManager is a simple implementation of the layer manager interface
@@ -248,14 +249,37 @@ func (a *App) moveCursorTo(x, y int) {
 // handleKeyPress processes keyboard input
 func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c", "q":
+	case "ctrl+c":
 		return a, tea.Quit
+	case "q":
+		// Don't quit if help modal is open
+		if !a.showHelp {
+			return a, tea.Quit
+		}
 		
-	// Cursor movement (vi-style)
-	case "h", "left":
+	// Cursor movement (vi-style) - but not when help is open
+	case "h":
 		a.moveCursor(-1, 0)
-	case "l", "right":
+	case "left":
+		if a.showHelp {
+			// Previous help tab
+			if a.helpTab > 0 {
+				a.helpTab--
+			}
+		} else {
+			a.moveCursor(-1, 0)
+		}
+	case "l":
 		a.moveCursor(1, 0)
+	case "right":
+		if a.showHelp {
+			// Next help tab
+			if a.helpTab < 5 { // We'll have 6 tabs (0-5)
+				a.helpTab++
+			}
+		} else {
+			a.moveCursor(1, 0)
+		}
 	case "k", "up":
 		a.moveCursor(0, -1)
 	case "j", "down":
@@ -315,6 +339,23 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Close help modal if open
 		if a.showHelp {
 			a.showHelp = false
+			a.helpTab = 0
+		}
+	
+	case "<", "shift+tab":
+		// Previous help tab
+		if a.showHelp {
+			if a.helpTab > 0 {
+				a.helpTab--
+			}
+		}
+	
+	case ">", "tab":
+		// Next help tab
+		if a.showHelp {
+			if a.helpTab < 5 { // We'll have 6 tabs (0-5)
+				a.helpTab++
+			}
 		}
 	}
 	
@@ -374,57 +415,82 @@ func (a *App) setPenChar(char rune) {
 	a.ctx.Cursor.Pen.Char = char
 }
 
-// getHelpContent returns the help modal content
-func (a *App) getHelpContent() string {
-	return `CADUBI v2 - Creative ASCII Drawing Utility
+// getHelpTabs returns all help tab titles
+func (a *App) getHelpTabs() []string {
+	return []string{"Movement", "Drawing", "Pen Tools", "Layers", "History", "General"}
+}
 
-┌─ MOVEMENT ────────────────────────────────────────┐
+// getHelpContent returns the help content for the current tab
+func (a *App) getHelpContent() string {
+	switch a.helpTab {
+	case 0: // Movement
+		return `┌─ MOVEMENT ────────────────────────────────────────┐
 │ h,j,k,l or ← ↓ ↑ →   Move cursor                  │
 │ Mouse click           Move cursor to position      │
 │ Mouse wheel           Scroll viewport              │
-└───────────────────────────────────────────────────┘
-
-┌─ DRAWING ─────────────────────────────────────────┐
+│ Home                  Go to origin (0,0)          │
+│ End                   Go to canvas edge           │
+└───────────────────────────────────────────────────┘`
+	
+	case 1: // Drawing
+		return `┌─ DRAWING ─────────────────────────────────────────┐
 │ Space                 Draw with current pen       │
 │ x, Backspace          Erase at cursor             │
 │ Left click            Draw at mouse position      │
 │ Right click           Erase at mouse position     │
-└───────────────────────────────────────────────────┘
-
-┌─ PEN CHARACTERS ──────────────────────────────────┐
+│ Enter                 Draw line horizontally      │
+│ Shift+Enter           Draw line vertically        │
+└───────────────────────────────────────────────────┘`
+	
+	case 2: // Pen Tools
+		return `┌─ PEN CHARACTERS ──────────────────────────────────┐
 │ *                     Set pen to '*'              │
 │ #                     Set pen to '#'              │
 │ +                     Set pen to '+'              │
 │ -                     Set pen to '-'              │
 │ |                     Set pen to '|'              │
-└───────────────────────────────────────────────────┘
-
-┌─ LAYERS ──────────────────────────────────────────┐
+│ .                     Set pen to '.'              │
+│ =                     Set pen to '='              │
+│ @                     Set pen to '@'              │
+└───────────────────────────────────────────────────┘`
+	
+	case 3: // Layers
+		return `┌─ LAYERS ──────────────────────────────────────────┐
 │ 1-5                   Switch to layer 1-5         │
 │ n                     Add new layer               │
 │ v                     Toggle layer visibility     │
-└───────────────────────────────────────────────────┘
-
-┌─ HISTORY ─────────────────────────────────────────┐
+│ d                     Delete current layer        │
+│ c                     Copy current layer          │
+│ m                     Merge layer down            │
+└───────────────────────────────────────────────────┘`
+	
+	case 4: // History
+		return `┌─ HISTORY ─────────────────────────────────────────┐
 │ u                     Undo last action            │
 │ r                     Redo last undone action     │
-└───────────────────────────────────────────────────┘
-
-┌─ GENERAL ─────────────────────────────────────────┐
+│ Ctrl+Z                Alternative undo            │
+│ Ctrl+Y                Alternative redo            │
+│ Ctrl+H                Show command history        │
+│ Ctrl+Shift+C          Clear history               │
+└───────────────────────────────────────────────────┘`
+	
+	case 5: // General
+		return `┌─ GENERAL ─────────────────────────────────────────┐
 │ ?                     Show/hide this help         │
+│ ← → or < > or Tab     Navigate help tabs          │
 │ Escape                Close help modal            │
 │ q, Ctrl+C             Quit application            │
-└───────────────────────────────────────────────────┘
-
-Press Escape or ? to close this help.`
+│ Ctrl+S                Save file                   │
+│ Ctrl+O                Open file                   │
+└───────────────────────────────────────────────────┘`
+	
+	default:
+		return "Invalid tab"
+	}
 }
 
 // View renders the current application state
 func (a *App) View() string {
-	// If help modal is shown, render it instead
-	if a.showHelp {
-		return a.renderHelpModal()
-	}
 	
 	// Create styles
 	borderStyle := lipgloss.NewStyle().
@@ -476,7 +542,15 @@ func (a *App) View() string {
 		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Layer: 1-5,n,v",
 	)
 	
-	return lipgloss.JoinVertical(lipgloss.Left, canvas, status, instructions)
+	// Create the main view
+	mainView := lipgloss.JoinVertical(lipgloss.Left, canvas, status, instructions)
+	
+	// If help modal is shown, overlay it on top
+	if a.showHelp {
+		return a.renderHelpModalOverlay(mainView)
+	}
+	
+	return mainView
 }
 
 // renderHelpModal renders the help modal dialog
@@ -484,45 +558,57 @@ func (a *App) renderHelpModal() string {
 	// Create modal styles
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#7C3AED")).
-		Padding(1, 2).
-		Background(lipgloss.Color("#1E1E2E")).
-		Foreground(lipgloss.Color("#CDD6F4"))
+		BorderForeground(lipgloss.Color("6")).
+		Padding(1, 2)
 	
-	overlayStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
-		Foreground(lipgloss.Color("#CDD6F4"))
+	tabBarStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+		
+	activeTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("8")).
+		Padding(0, 1)
+		
+	inactiveTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8")).
+		Padding(0, 1)
 	
-	// Get help content
+	// Create tab bar
+	tabs := a.getHelpTabs()
+	var tabElements []string
+	
+	for i, tab := range tabs {
+		if i == a.helpTab {
+			tabElements = append(tabElements, activeTabStyle.Render(tab))
+		} else {
+			tabElements = append(tabElements, inactiveTabStyle.Render(tab))
+		}
+	}
+	
+	tabBar := tabBarStyle.Render(strings.Join(tabElements, " "))
+	
+	// Get help content for current tab
 	helpContent := a.getHelpContent()
 	
-	// Create the modal
-	modal := modalStyle.Render(helpContent)
+	// Add title and navigation hints
+	title := fmt.Sprintf("CADUBI v2 - Help (%d/%d)", a.helpTab+1, len(tabs))
+	navigation := "Navigate: ← → or < > or Tab/Shift+Tab | Close: Esc or ?"
 	
-	// Create overlay background
-	overlay := strings.Repeat(" ", a.width) + "\n"
-	overlay = strings.Repeat(overlay, a.height)
-	overlay = overlayStyle.
-		Width(a.width).
-		Height(a.height).
-		Render(overlay)
+	// Combine everything
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		title,
+		"",
+		tabBar,
+		"",
+		helpContent,
+		"",
+		navigation,
+	)
+	
+	// Create the modal
+	modal := modalStyle.Render(content)
 	
 	// Center the modal on screen
-	modalWidth := lipgloss.Width(modal)
-	modalHeight := lipgloss.Height(modal)
-	
-	// Calculate centering position
-	leftPadding := (a.width - modalWidth) / 2
-	topPadding := (a.height - modalHeight) / 2
-	
-	if leftPadding < 0 {
-		leftPadding = 0
-	}
-	if topPadding < 0 {
-		topPadding = 0
-	}
-	
-	// Position the modal
 	centeredModal := lipgloss.Place(
 		a.width, a.height,
 		lipgloss.Center, lipgloss.Center,
@@ -530,6 +616,61 @@ func (a *App) renderHelpModal() string {
 	)
 	
 	return centeredModal
+}
+
+// renderHelpModalOverlay renders the help modal overlaid on the main view
+func (a *App) renderHelpModalOverlay(mainView string) string {
+	// Create modal content same as before
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("6")).
+		Padding(1, 2).
+		Background(lipgloss.Color("0")) // Use terminal background
+	
+	tabBarStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+		
+	activeTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("8")).
+		Padding(0, 1)
+		
+	inactiveTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8")).
+		Padding(0, 1)
+	
+	// Create tab bar
+	tabs := a.getHelpTabs()
+	var tabElements []string
+	
+	for i, tab := range tabs {
+		if i == a.helpTab {
+			tabElements = append(tabElements, activeTabStyle.Render(tab))
+		} else {
+			tabElements = append(tabElements, inactiveTabStyle.Render(tab))
+		}
+	}
+	
+	tabBar := tabBarStyle.Render(strings.Join(tabElements, " "))
+	helpContent := a.getHelpContent()
+	title := fmt.Sprintf("CADUBI v2 - Help (%d/%d)", a.helpTab+1, len(tabs))
+	navigation := "Navigate: ← → or < > or Tab/Shift+Tab | Close: Esc or ?"
+	
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		title, "", tabBar, "", helpContent, "", navigation,
+	)
+	
+	modal := modalStyle.Render(content)
+	
+	// Use Place to overlay the modal on a transparent background of the terminal size
+	overlay := lipgloss.Place(
+		a.width, a.height,
+		lipgloss.Center, lipgloss.Center,
+		modal,
+		lipgloss.WithWhitespaceBackground(lipgloss.NoColor{}),
+	)
+	
+	return overlay
 }
 
 // renderCanvasWithCursor renders the canvas content with cursor overlay
@@ -576,8 +717,8 @@ func (a *App) renderCanvasWithCursor(width, height int) string {
 		// Add cursor styling
 		if cursorX < len(runes) {
 			cursorStyle := lipgloss.NewStyle().
-				Background(lipgloss.Color("#7C3AED")).
-				Foreground(lipgloss.Color("#FFFFFF"))
+				Background(lipgloss.Color("7")).
+				Foreground(lipgloss.Color("0"))
 			
 			cursorChar := runes[cursorX]
 			if cursorChar == ' ' {
