@@ -405,3 +405,264 @@ func TestHeadlessSequence(t *testing.T) {
 
 	t.Log("Headless sequence test completed successfully")
 }
+
+func TestGetCharDisplayWidth(t *testing.T) {
+	app := NewApp()
+	
+	tests := []struct {
+		char     rune
+		expected int
+		desc     string
+	}{
+		{' ', 1, "space"},
+		{'A', 1, "regular ASCII letter"},
+		{'*', 1, "regular ASCII symbol"},
+		{'🤖', 2, "robot emoji"},
+		{'🎉', 2, "party emoji"},
+		{'🌟', 2, "star emoji"},
+		{'中', 2, "CJK character"},
+		{'あ', 2, "hiragana"},
+		{'カ', 2, "katakana"},
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result := app.getCharDisplayWidth(test.char)
+			if result != test.expected {
+				t.Errorf("getCharDisplayWidth('%c') = %d, expected %d", test.char, result, test.expected)
+			}
+		})
+	}
+}
+
+func TestScreenToCanvasNarrowChars(t *testing.T) {
+	app := NewApp()
+	app.width = 80
+	app.height = 24
+	
+	// Place some narrow characters on the canvas
+	app.cursor.X = 0
+	app.cursor.Y = 0
+	
+	// Draw some regular characters: "ABC"
+	chars := []rune{'A', 'B', 'C'}
+	for i, char := range chars {
+		app.cursor.X = i
+		app.cursor.Pen.Char = char
+		app.drawAtCursor()
+	}
+	
+	tests := []struct {
+		screenX, screenY   int
+		expectedX, expectedY int
+		desc               string
+	}{
+		{2, 1, 0, 0, "click on first character A"},
+		{3, 1, 1, 0, "click on second character B"},  
+		{4, 1, 2, 0, "click on third character C"},
+		{5, 1, 3, 0, "click after all characters"},
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			canvasX, canvasY := app.screenToCanvas(test.screenX, test.screenY)
+			if canvasX != test.expectedX || canvasY != test.expectedY {
+				t.Errorf("screenToCanvas(%d, %d) = (%d, %d), expected (%d, %d)", 
+					test.screenX, test.screenY, canvasX, canvasY, test.expectedX, test.expectedY)
+			}
+		})
+	}
+}
+
+func TestScreenToCanvasWideChars(t *testing.T) {
+	app := NewApp()
+	app.width = 80
+	app.height = 24
+	
+	// Place some wide characters on the canvas
+	app.cursor.X = 0
+	app.cursor.Y = 0
+	
+	// Draw some emoji: "🤖🎉🌟"
+	emojis := []rune{'🤖', '🎉', '🌟'}
+	for i, emoji := range emojis {
+		app.cursor.X = i
+		app.cursor.Pen.Char = emoji
+		app.drawAtCursor()
+	}
+	
+	tests := []struct {
+		screenX, screenY   int
+		expectedX, expectedY int
+		desc               string
+	}{
+		{2, 1, 0, 0, "click on first emoji 🤖 (left side)"},
+		{3, 1, 0, 0, "click on first emoji 🤖 (right side)"},
+		{4, 1, 1, 0, "click on second emoji 🎉 (left side)"},
+		{5, 1, 1, 0, "click on second emoji 🎉 (right side)"},
+		{6, 1, 2, 0, "click on third emoji 🌟 (left side)"},
+		{7, 1, 2, 0, "click on third emoji 🌟 (right side)"},
+		{8, 1, 3, 0, "click after all emoji"},
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			canvasX, canvasY := app.screenToCanvas(test.screenX, test.screenY)
+			if canvasX != test.expectedX || canvasY != test.expectedY {
+				t.Errorf("screenToCanvas(%d, %d) = (%d, %d), expected (%d, %d)", 
+					test.screenX, test.screenY, canvasX, canvasY, test.expectedX, test.expectedY)
+			}
+		})
+	}
+}
+
+func TestScreenToCanvasMixedChars(t *testing.T) {
+	app := NewApp()
+	app.width = 80
+	app.height = 24
+	
+	// Place mixed narrow and wide characters: "A🤖B🎉C"
+	app.cursor.Y = 0
+	mixedChars := []struct {
+		x    int
+		char rune
+	}{
+		{0, 'A'},   // narrow: screen cols 0
+		{1, '🤖'},  // wide: screen cols 1-2  
+		{2, 'B'},   // narrow: screen col 3
+		{3, '🎉'},  // wide: screen cols 4-5
+		{4, 'C'},   // narrow: screen col 6
+	}
+	
+	for _, item := range mixedChars {
+		app.cursor.X = item.x
+		app.cursor.Pen.Char = item.char
+		app.drawAtCursor()
+	}
+	
+	tests := []struct {
+		screenX, screenY   int
+		expectedX, expectedY int
+		desc               string
+	}{
+		{2, 1, 0, 0, "click on A"},
+		{3, 1, 1, 0, "click on 🤖 (left side)"},
+		{4, 1, 1, 0, "click on 🤖 (right side)"},
+		{5, 1, 2, 0, "click on B"},
+		{6, 1, 3, 0, "click on 🎉 (left side)"},
+		{7, 1, 3, 0, "click on 🎉 (right side)"},
+		{8, 1, 4, 0, "click on C"},
+		{9, 1, 5, 0, "click after C"},
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			canvasX, canvasY := app.screenToCanvas(test.screenX, test.screenY)
+			if canvasX != test.expectedX || canvasY != test.expectedY {
+				t.Errorf("screenToCanvas(%d, %d) = (%d, %d), expected (%d, %d)", 
+					test.screenX, test.screenY, canvasX, canvasY, test.expectedX, test.expectedY)
+			}
+		})
+	}
+}
+
+func TestScreenXToCanvasX(t *testing.T) {
+	app := NewApp()
+	app.width = 80
+	app.height = 24
+	
+	// Test the internal helper function directly
+	app.cursor.Y = 5
+	
+	// Place characters: "🤖ABC🎉"  
+	chars := []struct {
+		x    int
+		char rune
+	}{
+		{10, '🤖'}, // wide: screen cols 0-1
+		{11, 'A'},  // narrow: screen col 2  
+		{12, 'B'},  // narrow: screen col 3
+		{13, 'C'},  // narrow: screen col 4
+		{14, '🎉'}, // wide: screen cols 5-6
+	}
+	
+	for _, item := range chars {
+		app.cursor.X = item.x
+		app.cursor.Pen.Char = item.char
+		app.drawAtCursor()
+	}
+	
+	canvasY := 5
+	viewportX := 10
+	canvasWidth := 70
+	
+	tests := []struct {
+		screenRelativeX int
+		expectedCanvasX int
+		desc           string
+	}{
+		{0, 10, "screen pos 0 -> 🤖 at canvas 10"},
+		{1, 10, "screen pos 1 -> 🤖 at canvas 10 (right side)"},
+		{2, 11, "screen pos 2 -> A at canvas 11"},
+		{3, 12, "screen pos 3 -> B at canvas 12"},
+		{4, 13, "screen pos 4 -> C at canvas 13"},
+		{5, 14, "screen pos 5 -> 🎉 at canvas 14"},
+		{6, 14, "screen pos 6 -> 🎉 at canvas 14 (right side)"},
+		{7, 15, "screen pos 7 -> after 🎉 at canvas 15"},
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result := app.screenXToCanvasX(test.screenRelativeX, canvasY, viewportX, canvasWidth)
+			if result != test.expectedCanvasX {
+				t.Errorf("screenXToCanvasX(%d, %d, %d, %d) = %d, expected %d",
+					test.screenRelativeX, canvasY, viewportX, canvasWidth, result, test.expectedCanvasX)
+			}
+		})
+	}
+}
+
+func TestMouseClickWideCharacters(t *testing.T) {
+	app := NewApp()
+	app.width = 80
+	app.height = 24
+	
+	// Place an emoji at position (5, 5)
+	app.cursor.X = 5
+	app.cursor.Y = 5
+	app.cursor.Pen.Char = '🤖'
+	app.drawAtCursor()
+	
+	// Test mouse clicks around the emoji
+	tests := []struct {
+		mouseX, mouseY int
+		expectedX, expectedY int
+		desc string
+	}{
+		{7, 6, 5, 5, "click on left side of emoji"},   // screen pos (7,6) -> canvas (5,5)  
+		{8, 6, 5, 5, "click on right side of emoji"},  // screen pos (8,6) -> canvas (5,5)
+		{9, 6, 6, 5, "click after emoji"},             // screen pos (9,6) -> canvas (6,5)
+	}
+	
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			initialX, initialY := app.cursor.X, app.cursor.Y
+			
+			// Send mouse click
+			mouseMsg := tea.MouseMsg{
+				X:    test.mouseX,
+				Y:    test.mouseY,
+				Type: tea.MouseLeft,
+			}
+			_, _ = app.Update(mouseMsg)
+			
+			if app.cursor.X != test.expectedX || app.cursor.Y != test.expectedY {
+				t.Errorf("Mouse click at (%d, %d) moved cursor to (%d, %d), expected (%d, %d)",
+					test.mouseX, test.mouseY, app.cursor.X, app.cursor.Y, test.expectedX, test.expectedY)
+			}
+			
+			// Reset cursor for next test
+			app.cursor.X, app.cursor.Y = initialX, initialY
+		})
+	}
+}

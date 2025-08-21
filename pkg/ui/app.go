@@ -6,6 +6,7 @@ import (
 
 	"github.com/cadubi/cadubi/pkg/canvas"
 	"github.com/cadubi/cadubi/pkg/commands"
+	"github.com/cadubi/cadubi/pkg/unicode"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -456,7 +457,7 @@ func (a *App) handleMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-// screenToCanvas converts screen coordinates to canvas coordinates
+// screenToCanvas converts screen coordinates to canvas coordinates accounting for wide characters
 func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
 	// Calculate canvas area bounds (account for border)
 	canvasWidth := a.width - 4   // Account for border padding
@@ -472,17 +473,17 @@ func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
 	// Get current viewport position (top-left corner of the view)
 	viewportX, viewportY := a.canvas.GetViewportPos()
 
-	// Convert screen coordinates to canvas coordinates
 	// Account for border (1 char) and padding (1 char) = 2 chars offset
-	canvasRelativeX := screenX - 2
-	canvasRelativeY := screenY - 1 // Top border
+	screenRelativeX := screenX - 2
+	screenRelativeY := screenY - 1 // Top border
 
 	// Ensure we're within canvas bounds
-	if canvasRelativeX >= 0 && canvasRelativeX < canvasWidth &&
-		canvasRelativeY >= 0 && canvasRelativeY < canvasHeight {
-		// Add viewport offset to get absolute canvas coordinates
-		canvasX = viewportX + canvasRelativeX
-		canvasY = viewportY + canvasRelativeY
+	if screenRelativeY >= 0 && screenRelativeY < canvasHeight && screenRelativeX >= 0 {
+		// Calculate the canvas Y coordinate (straightforward)
+		canvasY = viewportY + screenRelativeY
+		
+		// For X coordinate, we need to account for wide characters
+		canvasX = a.screenXToCanvasX(screenRelativeX, canvasY, viewportX, canvasWidth)
 	} else {
 		// Default to current cursor position if click is outside canvas
 		canvasX = a.cursor.X
@@ -490,6 +491,42 @@ func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
 	}
 
 	return canvasX, canvasY
+}
+
+// screenXToCanvasX converts screen X coordinate to canvas X coordinate, accounting for wide characters
+func (a *App) screenXToCanvasX(screenRelativeX, canvasY, viewportX, canvasWidth int) int {
+	// Get the content for this row from the canvas
+	currentScreenX := 0
+	canvasX := viewportX
+	
+	// Iterate through canvas positions and accumulate screen width
+	for currentScreenX < screenRelativeX && (canvasX - viewportX) < canvasWidth {
+		// Get the character at this canvas position
+		pixel, err := a.canvas.GetPixel(canvasX, canvasY)
+		var char rune = ' '
+		if err == nil {
+			char = pixel.Char
+		}
+		
+		// Calculate how much screen space this character takes
+		charWidth := a.getCharDisplayWidth(char)
+		
+		// If adding this character would exceed our target screen position,
+		// we've found the right canvas position
+		if currentScreenX + charWidth > screenRelativeX {
+			return canvasX
+		}
+		
+		currentScreenX += charWidth
+		canvasX++
+	}
+	
+	return canvasX
+}
+
+// getCharDisplayWidth returns the display width of a character using proper Unicode width calculation
+func (a *App) getCharDisplayWidth(char rune) int {
+	return unicode.CharWidth(char)
 }
 
 // moveCursorTo moves cursor to specific coordinates
