@@ -290,7 +290,60 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Layer management dialog with pagination for many layers
   - [ ] Status messages with bubble styling
 
-## Phase 5: Advanced Drawing Tools 📋 PLANNED
+## Phase 5: Unicode Explorer & Character Palette System 📋 PLANNED
+
+### Unicode Character Explorer
+- [ ] **Unicode Character Browser**: Interactive explorer for non-emoji Unicode characters
+  - [ ] **Dingbats Plane** (U+2700–U+27BF): ✂✉☎✏✈⚡⚾⛄⭐ etc.
+  - [ ] **Mathematical Operators** (U+2200–U+22FF): ∀∃∈∉∑∏∫∞√± etc.
+  - [ ] **Mathematical Symbols** (U+2900–U+297F): ⤀⤁⤂⤃⤄⤅⤆⤇ etc.
+  - [ ] **Geometric Shapes Extended** (U+1F780–U+1F7FF): 🞀🞁🞂🞃🞄🞅 etc.
+  - [ ] Navigation with keyboard shortcuts (arrow keys, page up/down)
+  - [ ] Character preview with Unicode codepoint display
+  - [ ] Click-to-select character for pen tool
+  - [ ] Search functionality by name or codepoint
+
+### Quick Palette System
+- [ ] **Recent Characters Palette**: Automatic tracking of last 20 used characters
+  - [ ] Sidebar toggle for character swatches (S key or Ctrl+S)
+  - [ ] Visual character grid with click-to-select
+  - [ ] Most recently used at top, chronological ordering
+  - [ ] Clear recent history option
+- [ ] **Recent Colors Palette**: Track last 20 used colors
+  - [ ] Color swatch grid with visual preview
+  - [ ] Integration with existing color picker system
+  - [ ] Quick access via keyboard shortcuts
+- [ ] **Palette Modes**: Different swatch display options
+  - [ ] Grid mode (4x5 grid layout)
+  - [ ] Linear mode (horizontal strip)
+  - [ ] Compact mode (minimal space usage)
+
+### Swatch Management System
+- [ ] **Save/Load Character Swatches**: 
+  - [ ] Export character palettes to JSON files
+  - [ ] Import custom character sets
+  - [ ] Named palette system (e.g., "Arrows", "Math", "Decorative")
+- [ ] **Save/Load Color Swatches**:
+  - [ ] Color palette export/import
+  - [ ] Named color schemes (e.g., "Retro", "Neon", "Monochrome")
+  - [ ] Palette sharing between documents
+- [ ] **Document-Derived Palettes**: Auto-generate palettes from current document
+  - [ ] Extract all unique characters used in canvas
+  - [ ] Extract all unique colors used in canvas
+  - [ ] "Use Document Palette" mode for consistent styling
+  - [ ] Palette analysis and statistics
+
+### Palette Integration
+- [ ] **Seamless UI Integration**:
+  - [ ] Toggle palette sidebar (keeps main two-panel layout)
+  - [ ] Palette overlay mode (temporary popup)
+  - [ ] Status bar integration for quick access
+- [ ] **Palette Persistence**:
+  - [ ] Save palette preferences in ~/.config/cadubi/
+  - [ ] Per-project palette storage in .cadubi files
+  - [ ] Global vs project-specific palette modes
+
+## Phase 6: Advanced Drawing Tools 📋 PLANNED
 
 - [ ] Advanced brush system with custom characters
 - [ ] Selection tools (rectangular, freehand)
@@ -299,7 +352,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [ ] Line/shape drawing tools
 - [ ] Text tool with font effects
 
-## Phase 6: File & Export System 📋 PLANNED
+## Phase 7: File & Export System 📋 PLANNED
 
 ### Native Format
 
@@ -321,7 +374,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [ ] Batch processing: Command-line tools for bulk operations
 - [ ] Web export: HTML/CSS output for web display
 
-## Phase 7: Professional Features 📋 PLANNED
+## Phase 8: Professional Features 📋 PLANNED
 
 ### Advanced Features
 
@@ -356,7 +409,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [ ] Plugin system: Custom tools, effects, and file formats
 - [ ] CLI utilities: Headless rendering, batch processing tools
 
-## Phase 8: Distribution & Production 📋 PLANNED
+## Phase 9: Distribution & Production 📋 PLANNED
 
 ### Single Executable Applications
 
