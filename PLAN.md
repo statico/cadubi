@@ -78,6 +78,7 @@ Modern terminal-based ASCII art editor built with Go using the Charm Bracelet li
 - [ ] Responsive UI system for different terminal sizes
 - [ ] Three layout modes: <60 cols (no sidebar), 60-80 (compact), >80 (full)
 - [ ] Help dialog system with comprehensive keyboard shortcuts
+- [ ] Pagination system: Use < and > keys for navigating between pages/tabs in dialogs and panels
 
 ### Development Tooling
 
@@ -145,7 +146,7 @@ Modern terminal-based ASCII art editor built with Go using the Charm Bracelet li
 ```
 
 **Main Canvas Features (Top):**
-- Rounded border to clearly define drawable area
+- Rounded border in dim grey (same color as status bar) to clearly define drawable area
 - Infinite scrolling viewport with pan indicators
 - Cursor visualization and position tracking
 - Grid overlay (toggle with Ctrl+G)
@@ -212,14 +213,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [ ] Dark mode theme (default):
   - [ ] Standard terminal colors (white on black)
   - [ ] Rounded borders: ╭─╮ │ │ ╰─╯
+  - [ ] Canvas borders and status bar in consistent dim grey (#6B7280)
   - [ ] Subtle shadows using dim text
 - [ ] Light mode theme:
   - [ ] Inverted colors (dark on light backgrounds)
   - [ ] High contrast borders and UI elements
+  - [ ] Canvas borders and status bar adapted for light background
   - [ ] Accessibility-optimized color choices
-- [ ] Dynamic theme switching:
+- [ ] Theme switching system:
+  - [ ] Multiple color schemes: dark mode, light mode, high contrast, custom themes
   - [ ] Live theme updates without restart
   - [ ] Theme-aware color palette adaptation
+  - [ ] User preference persistence in config files
   - [ ] Smooth transition animations
 
 ### Advanced Text Formatting
@@ -246,16 +251,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Canvas stats (dimensions, cursor pos, zoom)
   - [ ] File status indicator (● modified / ○ saved)
 - [ ] BorderedCanvas component (main panel):
-  - [ ] Rounded border frame around drawable area
+  - [ ] Rounded border frame in dim grey (#6B7280) around drawable area
   - [ ] Infinite canvas viewport with smooth scrolling
   - [ ] Grid overlay system (Ctrl+G toggle)
   - [ ] Cursor visualization and tracking
   - [ ] Pan indicators when scrolling
 - [ ] Modal dialogs (overlays on main canvas):
-  - [ ] Help dialog with rounded corners
-  - [ ] Advanced color picker (popup from status bar)
-  - [ ] Preferences dialog
-  - [ ] Layer management dialog
+  - [ ] Help dialog with rounded corners and pagination (< > keys for multiple pages)
+  - [ ] Advanced color picker (popup from status bar) with tabbed interface (< > keys)
+  - [ ] Preferences dialog with multiple sections navigable via < > keys
+  - [ ] Layer management dialog with pagination for many layers
   - [ ] Status messages with bubble styling
 
 ## Phase 5: Advanced Drawing Tools 📋 PLANNED
@@ -354,9 +359,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Theme selection persistence
   - [ ] Keybinding customization
   - [ ] Default tool settings
-- [ ] Dual theme system:
-  - [ ] Dark mode (default terminal colors)
-  - [ ] Light mode (bright/inverted colors)
+- [ ] Multi-theme system:
+  - [ ] Dark mode (default terminal colors with dim grey borders)
+  - [ ] Light mode (bright/inverted colors with adapted borders)
+  - [ ] High contrast mode for accessibility
+  - [ ] Custom theme support with user-defined color schemes
   - [ ] Dynamic theme switching (Ctrl+T)
   - [ ] Theme-aware color palettes
 - [ ] First-run experience:

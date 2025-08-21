@@ -429,6 +429,7 @@ func (a *App) View() string {
 	// Create styles
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#6B7280")).
 		Padding(0, 1)
 	
 	statusStyle := lipgloss.NewStyle().
