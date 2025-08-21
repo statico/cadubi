@@ -420,16 +420,16 @@ func (a *App) View() string {
 
 // renderCanvasWithCursor renders the canvas content with cursor overlay
 func (a *App) renderCanvasWithCursor(width, height int) string {
-	// Center viewport on cursor for infinite canvas experience
-	a.canvas.CenterViewportOn(a.cursor.X, a.cursor.Y, width, height)
+	// Position viewport so cursor is visible, but keep (0,0) near top-left when possible
+	a.positionViewportForCursor(width, height)
 	
 	// Get canvas content centered on cursor
 	content := a.canvas.GetViewportCentered(width, height)
 	
 	// Calculate viewport position for cursor rendering
 	viewportX, viewportY := a.canvas.GetViewportPos()
-	startX := viewportX - width/2
-	startY := viewportY - height/2
+	startX := viewportX  // viewportX/Y is already the top-left corner
+	startY := viewportY
 	
 	// Overlay cursor
 	lines := strings.Split(content, "\n")
@@ -478,4 +478,47 @@ func (a *App) renderCanvasWithCursor(width, height int) string {
 	}
 	
 	return strings.Join(lines, "\n")
+}
+
+// positionViewportForCursor positions the viewport to show the cursor intelligently
+func (a *App) positionViewportForCursor(width, height int) {
+	// Simple approach: keep (0,0) at top-left unless cursor moves too far right or down
+	// Start scrolling when cursor approaches edges
+	
+	marginX := width / 6   // Start scrolling when cursor is 1/6 from edge
+	marginY := height / 6  // Start scrolling when cursor is 1/6 from edge
+	
+	// Calculate viewport position to keep cursor visible with margin
+	viewportX := 0
+	viewportY := 0
+	
+	// Scroll horizontally if cursor is too far right
+	if a.cursor.X >= width - marginX {
+		viewportX = a.cursor.X - width + marginX + 1
+	}
+	
+	// Scroll vertically if cursor is too far down
+	if a.cursor.Y >= height - marginY {
+		viewportY = a.cursor.Y - height + marginY + 1
+	}
+	
+	// Scroll left if cursor goes negative and we're not at origin
+	if a.cursor.X < marginX && a.cursor.X < 0 {
+		viewportX = a.cursor.X - marginX
+	}
+	
+	// Scroll up if cursor goes negative and we're not at origin
+	if a.cursor.Y < marginY && a.cursor.Y < 0 {
+		viewportY = a.cursor.Y - marginY
+	}
+	
+	a.canvas.SetViewport(viewportX, viewportY)
+}
+
+// abs returns the absolute value of an integer
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }

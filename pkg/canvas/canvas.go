@@ -176,8 +176,9 @@ func (c *Canvas) GetViewportCentered(width, height int) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	
-	startX := c.viewportX - width/2
-	startY := c.viewportY - height/2
+	// The viewportX/Y from CenterViewportOn represents the top-left corner of the view
+	startX := c.viewportX
+	startY := c.viewportY
 	
 	return c.getViewportInternal(startX, startY, width, height)
 }
