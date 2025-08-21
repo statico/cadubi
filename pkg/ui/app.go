@@ -311,6 +311,21 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "|":
 		a.setPenChar('|')
 		
+	// Change pen color (basic colors)
+	case "c":
+		// Cycle through common colors
+		a.cyclePenColor()
+	case "w":
+		a.setPenColor("white")
+	case "b":
+		a.setPenColor("black")
+	case "g":
+		a.setPenColor("green")
+	case "y":
+		a.setPenColor("yellow")
+	case "m":
+		a.setPenColor("magenta")
+		
 	// Layer controls
 	case "1", "2", "3", "4", "5":
 		// Switch to layer by number
@@ -335,7 +350,7 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle help modal
 		a.showHelp = !a.showHelp
 	
-	case "escape":
+	case "escape", "esc":
 		// Close help modal if open
 		if a.showHelp {
 			a.showHelp = false
@@ -415,6 +430,34 @@ func (a *App) setPenChar(char rune) {
 	a.ctx.Cursor.Pen.Char = char
 }
 
+// setPenColor changes the pen color
+func (a *App) setPenColor(color string) {
+	a.cursor.Pen.Foreground = color
+	a.ctx.Cursor.Pen.Foreground = color
+}
+
+// cyclePenColor cycles through common colors
+func (a *App) cyclePenColor() {
+	colors := []string{"white", "red", "green", "yellow", "blue", "magenta", "cyan", "black"}
+	currentColor := a.cursor.Pen.Foreground
+	if currentColor == "" {
+		currentColor = "white"
+	}
+	
+	// Find current color index
+	currentIndex := 0
+	for i, color := range colors {
+		if color == currentColor {
+			currentIndex = i
+			break
+		}
+	}
+	
+	// Move to next color
+	nextIndex := (currentIndex + 1) % len(colors)
+	a.setPenColor(colors[nextIndex])
+}
+
 // getHelpTabs returns all help tab titles
 func (a *App) getHelpTabs() []string {
 	return []string{"Movement", "Drawing", "Pen Tools", "Layers", "History", "General"}
@@ -443,15 +486,14 @@ func (a *App) getHelpContent() string {
 └───────────────────────────────────────────────────┘`
 	
 	case 2: // Pen Tools
-		return `┌─ PEN CHARACTERS ──────────────────────────────────┐
-│ *                     Set pen to '*'              │
-│ #                     Set pen to '#'              │
-│ +                     Set pen to '+'              │
-│ -                     Set pen to '-'              │
-│ |                     Set pen to '|'              │
-│ .                     Set pen to '.'              │
-│ =                     Set pen to '='              │
-│ @                     Set pen to '@'              │
+		return `┌─ PEN TOOLS ───────────────────────────────────────┐
+│ *#+|-                 Set pen character           │
+│ c                     Cycle pen colors            │
+│ w                     Set pen to white            │
+│ b                     Set pen to black            │
+│ g                     Set pen to green            │
+│ y                     Set pen to yellow           │
+│ m                     Set pen to magenta          │
 └───────────────────────────────────────────────────┘`
 	
 	case 3: // Layers
@@ -527,19 +569,31 @@ func (a *App) View() string {
 	currentLayer := a.canvas.GetCurrentLayer()
 	layerCount := a.canvas.GetLayerCount()
 	layerVisible := a.canvas.IsLayerVisible(currentLayer)
-	visibilityIcon := "●"
+	layerIcon := "⧉"
 	if !layerVisible {
-		visibilityIcon = "○"
+		layerIcon = "○"
 	}
 	
+	// Get canvas dimensions for display
+	minX, minY, maxX, maxY := a.canvas.GetBounds()
+	canvasW := maxX - minX + 1
+	canvasH := maxY - minY + 1
+	
+	// Create color indicator
+	penColor := a.cursor.Pen.Foreground
+	if penColor == "" {
+		penColor = "white"
+	}
+	colorSwatch := lipgloss.NewStyle().Foreground(lipgloss.Color(penColor)).Render("●●●")
+	
 	status := statusStyle.Render(fmt.Sprintf(
-		"Tool: %s │ Pen: '%c' │ Cursor: (%d,%d) │ Layer: %s%d/%d │ History: %d/%d │ Press '?' for help",
-		a.currentTool, a.cursor.Pen.Char, a.cursor.X, a.cursor.Y, visibilityIcon, currentLayer+1, layerCount, position, total,
+		"■ Tool: %s │ Pen: '%c' │ %s Colors │ Layer: %s%d/%d │ Canvas: %dx%d │ Cursor: (%d,%d) │ History: %d/%d",
+		a.currentTool, a.cursor.Pen.Char, colorSwatch, layerIcon, currentLayer+1, layerCount, canvasW, canvasH, a.cursor.X, a.cursor.Y, position, total,
 	))
 	
 	// Instructions
 	instructions := statusStyle.Render(
-		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Layer: 1-5,n,v",
+		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v",
 	)
 	
 	// Create the main view
