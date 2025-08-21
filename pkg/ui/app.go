@@ -199,10 +199,8 @@ func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
 		canvasHeight = 5
 	}
 	
-	// Get current viewport position
+	// Get current viewport position (top-left corner of the view)
 	viewportX, viewportY := a.canvas.GetViewportPos()
-	startX := viewportX - canvasWidth/2
-	startY := viewportY - canvasHeight/2
 	
 	// Convert screen coordinates to canvas coordinates
 	// Account for border (1 char) and padding (1 char) = 2 chars offset
@@ -212,8 +210,9 @@ func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
 	// Ensure we're within canvas bounds
 	if canvasRelativeX >= 0 && canvasRelativeX < canvasWidth &&
 		canvasRelativeY >= 0 && canvasRelativeY < canvasHeight {
-		canvasX = startX + canvasRelativeX
-		canvasY = startY + canvasRelativeY
+		// Add viewport offset to get absolute canvas coordinates
+		canvasX = viewportX + canvasRelativeX
+		canvasY = viewportY + canvasRelativeY
 	} else {
 		// Default to current cursor position if click is outside canvas
 		canvasX = a.cursor.X
