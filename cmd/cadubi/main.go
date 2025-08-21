@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cadubi/cadubi/pkg/ui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 
 	// Create Bubble Tea program with mouse support
 	p := tea.NewProgram(
-		mainModel, 
+		mainModel,
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(), // Enable mouse support with motion
 	)

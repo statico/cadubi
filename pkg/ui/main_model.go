@@ -17,13 +17,13 @@ type MainModel struct {
 func NewMainModel() *MainModel {
 	// Go directly to main app - no first-run dialog needed
 	app := NewApp()
-	
+
 	m := &MainModel{
 		app:          app,
 		currentModel: app,
 		initialized:  true,
 	}
-	
+
 	return m
 }
 
@@ -37,7 +37,7 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.initialized {
 		return m, nil
 	}
-	
+
 	// Track window size changes
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -49,12 +49,12 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.app.height = m.height
 		}
 	}
-	
+
 	// Delegate to the main app
 	newModel, cmd := m.currentModel.Update(msg)
 	m.app = newModel.(*App)
 	m.currentModel = m.app
-	
+
 	return m, cmd
 }
 
@@ -63,6 +63,6 @@ func (m *MainModel) View() string {
 	if !m.initialized {
 		return "Initializing..."
 	}
-	
+
 	return m.currentModel.View()
 }

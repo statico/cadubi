@@ -14,14 +14,14 @@ type JSONCommand struct {
 
 // JSONTestScenario represents a complete test scenario
 type JSONTestScenario struct {
-	Name      string        `json:"name"`
-	Commands  []JSONCommand `json:"commands"`
-	Assertions []Assertion  `json:"assertions"`
+	Name       string        `json:"name"`
+	Commands   []JSONCommand `json:"commands"`
+	Assertions []Assertion   `json:"assertions"`
 }
 
 // Assertion represents a test assertion
 type Assertion struct {
-	Type     string                 `json:"type"`     // "pixel", "cursor", "history_count"
+	Type     string                 `json:"type"` // "pixel", "cursor", "history_count"
 	Expected map[string]interface{} `json:"expected"`
 }
 
@@ -32,7 +32,7 @@ func ExecuteJSONCommands(ctx *CommandContext, history *CommandHistory, jsonComma
 		if err != nil {
 			return err
 		}
-		
+
 		if err := history.Execute(ctx, cmd); err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func CreateCommandFromJSON(jsonCmd JSONCommand) (Command, error) {
 		x := int(jsonCmd.Params["x"].(float64))
 		y := int(jsonCmd.Params["y"].(float64))
 		char := rune(jsonCmd.Params["char"].(string)[0])
-		
+
 		pixel := Pixel{Char: char}
 		if fg, exists := jsonCmd.Params["foreground"]; exists {
 			pixel.Foreground = fg.(string)
@@ -58,14 +58,14 @@ func CreateCommandFromJSON(jsonCmd JSONCommand) (Command, error) {
 		if bold, exists := jsonCmd.Params["bold"]; exists {
 			pixel.Bold = bold.(bool)
 		}
-		
+
 		layer := 0
 		if l, exists := jsonCmd.Params["layer"]; exists {
 			layer = int(l.(float64))
 		}
-		
+
 		return NewDrawCommand(x, y, pixel, layer), nil
-		
+
 	case "erase":
 		x := int(jsonCmd.Params["x"].(float64))
 		y := int(jsonCmd.Params["y"].(float64))
@@ -74,31 +74,31 @@ func CreateCommandFromJSON(jsonCmd JSONCommand) (Command, error) {
 			layer = int(l.(float64))
 		}
 		return NewEraseCommand(x, y, layer), nil
-		
+
 	case "move_cursor":
 		x := int(jsonCmd.Params["x"].(float64))
 		y := int(jsonCmd.Params["y"].(float64))
 		return NewMoveCursorCommand(x, y), nil
-		
+
 	case "line":
 		x1 := int(jsonCmd.Params["x1"].(float64))
 		y1 := int(jsonCmd.Params["y1"].(float64))
 		x2 := int(jsonCmd.Params["x2"].(float64))
 		y2 := int(jsonCmd.Params["y2"].(float64))
 		char := rune(jsonCmd.Params["char"].(string)[0])
-		
+
 		pixel := Pixel{Char: char}
 		if fg, exists := jsonCmd.Params["foreground"]; exists {
 			pixel.Foreground = fg.(string)
 		}
-		
+
 		layer := 0
 		if l, exists := jsonCmd.Params["layer"]; exists {
 			layer = int(l.(float64))
 		}
-		
+
 		return NewLineCommand(x1, y1, x2, y2, pixel, layer), nil
-		
+
 	case "rectangle":
 		x1 := int(jsonCmd.Params["x1"].(float64))
 		y1 := int(jsonCmd.Params["y1"].(float64))
@@ -109,19 +109,19 @@ func CreateCommandFromJSON(jsonCmd JSONCommand) (Command, error) {
 		if f, exists := jsonCmd.Params["filled"]; exists {
 			filled = f.(bool)
 		}
-		
+
 		pixel := Pixel{Char: char}
 		if fg, exists := jsonCmd.Params["foreground"]; exists {
 			pixel.Foreground = fg.(string)
 		}
-		
+
 		layer := 0
 		if l, exists := jsonCmd.Params["layer"]; exists {
 			layer = int(l.(float64))
 		}
-		
+
 		return NewRectangleCommand(x1, y1, x2, y2, pixel, layer, filled), nil
-		
+
 	default:
 		return nil, fmt.Errorf("unknown command type: %s", jsonCmd.Type)
 	}
@@ -135,30 +135,30 @@ func ValidateAssertions(t *testing.T, ctx *CommandContext, history *CommandHisto
 			x := int(assertion.Expected["x"].(float64))
 			y := int(assertion.Expected["y"].(float64))
 			expectedChar := rune(assertion.Expected["char"].(string)[0])
-			
+
 			pixel, err := ctx.Canvas.GetPixel(x, y)
 			if err != nil {
 				t.Errorf("Failed to get pixel at (%d, %d): %v", x, y, err)
 				continue
 			}
-			
+
 			if pixel.Char != expectedChar {
 				t.Errorf("Expected pixel at (%d, %d) to be '%c', got '%c'", x, y, expectedChar, pixel.Char)
 			}
-			
+
 		case "cursor":
 			expectedX := int(assertion.Expected["x"].(float64))
 			expectedY := int(assertion.Expected["y"].(float64))
-			
+
 			if ctx.Cursor.X != expectedX || ctx.Cursor.Y != expectedY {
-				t.Errorf("Expected cursor at (%d, %d), got (%d, %d)", 
+				t.Errorf("Expected cursor at (%d, %d), got (%d, %d)",
 					expectedX, expectedY, ctx.Cursor.X, ctx.Cursor.Y)
 			}
-			
+
 		case "history_count":
 			expectedCount := int(assertion.Expected["count"].(float64))
 			total, _ := history.GetStats()
-			
+
 			if total != expectedCount {
 				t.Errorf("Expected %d commands in history, got %d", expectedCount, total)
 			}
@@ -237,13 +237,13 @@ func TestJSONDrivenCommands(t *testing.T) {
 			}
 		]
 	}`
-	
+
 	// Parse JSON scenario
 	var scenario JSONTestScenario
 	if err := json.Unmarshal([]byte(scenarioJSON), &scenario); err != nil {
 		t.Fatalf("Failed to parse test scenario: %v", err)
 	}
-	
+
 	// Set up test context
 	canvas := NewMockCanvas(80, 24)
 	ctx := &CommandContext{
@@ -252,15 +252,15 @@ func TestJSONDrivenCommands(t *testing.T) {
 		Cursor: CursorState{X: 0, Y: 0},
 	}
 	history := NewCommandHistory(100)
-	
+
 	// Execute commands
 	if err := ExecuteJSONCommands(ctx, history, scenario.Commands); err != nil {
 		t.Fatalf("Failed to execute JSON commands: %v", err)
 	}
-	
+
 	// Validate assertions
 	ValidateAssertions(t, ctx, history, scenario.Assertions)
-	
+
 	t.Logf("Successfully executed JSON test scenario: %s", scenario.Name)
 }
 
@@ -305,12 +305,12 @@ func TestJSONCommandUndo(t *testing.T) {
 			}
 		]
 	}`
-	
+
 	var scenario JSONTestScenario
 	if err := json.Unmarshal([]byte(scenarioJSON), &scenario); err != nil {
 		t.Fatalf("Failed to parse test scenario: %v", err)
 	}
-	
+
 	// Set up test context
 	canvas := NewMockCanvas(80, 24)
 	ctx := &CommandContext{
@@ -319,31 +319,31 @@ func TestJSONCommandUndo(t *testing.T) {
 		Cursor: CursorState{X: 0, Y: 0},
 	}
 	history := NewCommandHistory(100)
-	
+
 	// Execute commands
 	if err := ExecuteJSONCommands(ctx, history, scenario.Commands); err != nil {
 		t.Fatalf("Failed to execute JSON commands: %v", err)
 	}
-	
+
 	// Validate initial state
 	ValidateAssertions(t, ctx, history, scenario.Assertions)
-	
+
 	// Undo last command
 	if err := history.Undo(ctx); err != nil {
 		t.Fatalf("Failed to undo: %v", err)
 	}
-	
+
 	// Verify B was undone but A remains
 	pixelA, _ := ctx.Canvas.GetPixel(5, 5)
 	pixelB, _ := ctx.Canvas.GetPixel(6, 5)
-	
+
 	if pixelA.Char != 'A' {
 		t.Error("Expected pixel A to remain after undo")
 	}
 	if pixelB.Char != ' ' {
 		t.Error("Expected pixel B to be undone")
 	}
-	
+
 	t.Log("JSON-driven undo test passed")
 }
 
@@ -429,12 +429,12 @@ func TestJSONDrawingTools(t *testing.T) {
 			}
 		]
 	}`
-	
+
 	var scenario JSONTestScenario
 	if err := json.Unmarshal([]byte(scenarioJSON), &scenario); err != nil {
 		t.Fatalf("Failed to parse test scenario: %v", err)
 	}
-	
+
 	// Set up test context
 	canvas := NewMockCanvas(80, 24)
 	ctx := &CommandContext{
@@ -443,14 +443,14 @@ func TestJSONDrawingTools(t *testing.T) {
 		Cursor: CursorState{X: 0, Y: 0},
 	}
 	history := NewCommandHistory(100)
-	
+
 	// Execute commands
 	if err := ExecuteJSONCommands(ctx, history, scenario.Commands); err != nil {
 		t.Fatalf("Failed to execute JSON commands: %v", err)
 	}
-	
+
 	// Validate assertions
 	ValidateAssertions(t, ctx, history, scenario.Assertions)
-	
+
 	t.Logf("Successfully executed drawing tools test: %s", scenario.Name)
 }

@@ -6,24 +6,24 @@ import "time"
 type Command interface {
 	// Execute performs the command
 	Execute(ctx *CommandContext) error
-	
+
 	// Undo reverses the command
 	Undo(ctx *CommandContext) error
-	
+
 	// Description returns a human-readable description of the command
 	Description() string
-	
+
 	// Timestamp returns when the command was created
 	Timestamp() time.Time
 }
 
 // CommandContext provides the environment for command execution
 type CommandContext struct {
-	Canvas     CanvasManager
-	Layers     LayerManager
-	Cursor     CursorState
-	Selection  SelectionManager
-	Clipboard  ClipboardManager
+	Canvas    CanvasManager
+	Layers    LayerManager
+	Cursor    CursorState
+	Selection SelectionManager
+	Clipboard ClipboardManager
 }
 
 // CanvasManager interface for canvas operations

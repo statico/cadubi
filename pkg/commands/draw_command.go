@@ -5,11 +5,11 @@ import "fmt"
 // DrawCommand draws a pixel at a specific location
 type DrawCommand struct {
 	BaseCommand
-	X, Y      int
-	NewPixel  Pixel
-	OldPixel  Pixel
-	Layer     int
-	executed  bool
+	X, Y     int
+	NewPixel Pixel
+	OldPixel Pixel
+	Layer    int
+	executed bool
 }
 
 // NewDrawCommand creates a new draw command
@@ -37,7 +37,7 @@ func (dc *DrawCommand) Execute(ctx *CommandContext) error {
 		}
 		dc.executed = true
 	}
-	
+
 	// Set the new pixel
 	return ctx.Canvas.SetPixel(dc.X, dc.Y, dc.NewPixel)
 }
@@ -47,17 +47,17 @@ func (dc *DrawCommand) Undo(ctx *CommandContext) error {
 	if !dc.executed {
 		return fmt.Errorf("cannot undo unexecuted command")
 	}
-	
+
 	return ctx.Canvas.SetPixel(dc.X, dc.Y, dc.OldPixel)
 }
 
 // EraseCommand erases a pixel at a specific location
 type EraseCommand struct {
 	BaseCommand
-	X, Y      int
-	OldPixel  Pixel
-	Layer     int
-	executed  bool
+	X, Y     int
+	OldPixel Pixel
+	Layer    int
+	executed bool
 }
 
 // NewEraseCommand creates a new erase command
@@ -82,7 +82,7 @@ func (ec *EraseCommand) Execute(ctx *CommandContext) error {
 		ec.OldPixel = oldPixel
 		ec.executed = true
 	}
-	
+
 	// Erase by setting to empty pixel
 	emptyPixel := Pixel{Char: ' '}
 	return ctx.Canvas.SetPixel(ec.X, ec.Y, emptyPixel)
@@ -93,7 +93,7 @@ func (ec *EraseCommand) Undo(ctx *CommandContext) error {
 	if !ec.executed {
 		return fmt.Errorf("cannot undo unexecuted command")
 	}
-	
+
 	return ctx.Canvas.SetPixel(ec.X, ec.Y, ec.OldPixel)
 }
 
@@ -122,7 +122,7 @@ func (mc *MoveCursorCommand) Execute(ctx *CommandContext) error {
 		mc.OldY = ctx.Cursor.Y
 		mc.executed = true
 	}
-	
+
 	ctx.Cursor.X = mc.NewX
 	ctx.Cursor.Y = mc.NewY
 	return nil
@@ -133,7 +133,7 @@ func (mc *MoveCursorCommand) Undo(ctx *CommandContext) error {
 	if !mc.executed {
 		return fmt.Errorf("cannot undo unexecuted command")
 	}
-	
+
 	ctx.Cursor.X = mc.OldX
 	ctx.Cursor.Y = mc.OldY
 	return nil

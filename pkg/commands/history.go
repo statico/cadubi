@@ -26,21 +26,21 @@ func NewCommandHistory(maxCommands int) *CommandHistory {
 func (ch *CommandHistory) Execute(ctx *CommandContext, cmd Command) error {
 	ch.mutex.Lock()
 	defer ch.mutex.Unlock()
-	
+
 	// Execute the command
 	if err := cmd.Execute(ctx); err != nil {
 		return err
 	}
-	
+
 	// Clear any commands after current position (for redo)
 	if ch.currentPos < len(ch.commands)-1 {
 		ch.commands = ch.commands[:ch.currentPos+1]
 	}
-	
+
 	// Add the new command
 	ch.commands = append(ch.commands, cmd)
 	ch.currentPos++
-	
+
 	// Limit the number of commands
 	if len(ch.commands) > ch.maxCommands {
 		// Remove the oldest command
@@ -48,7 +48,7 @@ func (ch *CommandHistory) Execute(ctx *CommandContext, cmd Command) error {
 		ch.commands = ch.commands[:len(ch.commands)-1]
 		ch.currentPos--
 	}
-	
+
 	return nil
 }
 
@@ -56,16 +56,16 @@ func (ch *CommandHistory) Execute(ctx *CommandContext, cmd Command) error {
 func (ch *CommandHistory) Undo(ctx *CommandContext) error {
 	ch.mutex.Lock()
 	defer ch.mutex.Unlock()
-	
+
 	if ch.currentPos < 0 {
 		return fmt.Errorf("no commands to undo")
 	}
-	
+
 	cmd := ch.commands[ch.currentPos]
 	if err := cmd.Undo(ctx); err != nil {
 		return fmt.Errorf("failed to undo command: %w", err)
 	}
-	
+
 	ch.currentPos--
 	return nil
 }
@@ -74,18 +74,18 @@ func (ch *CommandHistory) Undo(ctx *CommandContext) error {
 func (ch *CommandHistory) Redo(ctx *CommandContext) error {
 	ch.mutex.Lock()
 	defer ch.mutex.Unlock()
-	
+
 	if ch.currentPos >= len(ch.commands)-1 {
 		return fmt.Errorf("no commands to redo")
 	}
-	
+
 	ch.currentPos++
 	cmd := ch.commands[ch.currentPos]
 	if err := cmd.Execute(ctx); err != nil {
 		ch.currentPos-- // Rollback position on error
 		return fmt.Errorf("failed to redo command: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -107,7 +107,7 @@ func (ch *CommandHistory) CanRedo() bool {
 func (ch *CommandHistory) GetHistory() []string {
 	ch.mutex.RLock()
 	defer ch.mutex.RUnlock()
-	
+
 	history := make([]string, len(ch.commands))
 	for i, cmd := range ch.commands {
 		marker := "  "
@@ -116,7 +116,7 @@ func (ch *CommandHistory) GetHistory() []string {
 		}
 		history[i] = marker + cmd.Description()
 	}
-	
+
 	return history
 }
 
@@ -124,7 +124,7 @@ func (ch *CommandHistory) GetHistory() []string {
 func (ch *CommandHistory) Clear() {
 	ch.mutex.Lock()
 	defer ch.mutex.Unlock()
-	
+
 	ch.commands = ch.commands[:0]
 	ch.currentPos = -1
 }
@@ -133,6 +133,6 @@ func (ch *CommandHistory) Clear() {
 func (ch *CommandHistory) GetStats() (total, position int) {
 	ch.mutex.RLock()
 	defer ch.mutex.RUnlock()
-	
+
 	return len(ch.commands), ch.currentPos + 1
 }

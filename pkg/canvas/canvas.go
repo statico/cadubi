@@ -10,13 +10,13 @@ import (
 
 // Canvas represents the drawing surface with infinite dimensions and layers
 type Canvas struct {
-	layers      *LayerStack               // Layer management
-	minX, minY  int                       // Actual content bounds
-	maxX, maxY  int                       // Actual content bounds
-	viewportX   int                       // Current viewport position
-	viewportY   int                       // Current viewport position
+	layers      *LayerStack // Layer management
+	minX, minY  int         // Actual content bounds
+	maxX, maxY  int         // Actual content bounds
+	viewportX   int         // Current viewport position
+	viewportY   int         // Current viewport position
 	mutex       sync.RWMutex
-	initialized bool                      // Track if bounds are initialized
+	initialized bool // Track if bounds are initialized
 }
 
 // NewCanvas creates a new infinite canvas with layers
@@ -43,7 +43,7 @@ func (c *Canvas) GetPixel(x, y int) (commands.Pixel, error) {
 func (c *Canvas) SetPixel(x, y int, pixel commands.Pixel) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	// Update bounds for infinite canvas
 	if !c.initialized {
 		c.minX, c.minY = x, y
@@ -63,7 +63,7 @@ func (c *Canvas) SetPixel(x, y int, pixel commands.Pixel) error {
 			c.maxY = y
 		}
 	}
-	
+
 	// Set pixel on current layer
 	currentLayer := c.layers.GetCurrentLayer()
 	return c.layers.SetPixel(currentLayer, x, y, pixel)
@@ -73,11 +73,11 @@ func (c *Canvas) SetPixel(x, y int, pixel commands.Pixel) error {
 func (c *Canvas) GetDimensions() (width, height int) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	if !c.initialized {
 		return 80, 24 // Default dimensions
 	}
-	
+
 	return c.maxX - c.minX + 1, c.maxY - c.minY + 1
 }
 
@@ -85,13 +85,13 @@ func (c *Canvas) GetDimensions() (width, height int) {
 func (c *Canvas) Clear() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	currentLayer := c.layers.GetCurrentLayer()
 	err := c.layers.ClearLayer(currentLayer)
 	if err != nil {
 		return err
 	}
-	
+
 	// Reset bounds
 	c.initialized = false
 	c.minX, c.minY = 0, 0
@@ -103,20 +103,20 @@ func (c *Canvas) Clear() error {
 func (c *Canvas) GetViewport(startX, startY, width, height int) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	var lines []string
-	
+
 	for y := startY; y < startY+height; y++ {
 		var line []string
-		
+
 		for x := startX; x < startX+width; x++ {
 			// Get composited pixel from all layers
 			pixel := c.layers.GetCompositePixel(x, y)
-			
+
 			if pixel.Char != ' ' {
 				// Create styled character using Lipgloss
 				style := lipgloss.NewStyle()
-				
+
 				if pixel.Foreground != "" {
 					style = style.Foreground(lipgloss.Color(pixel.Foreground))
 				}
@@ -132,16 +132,16 @@ func (c *Canvas) GetViewport(startX, startY, width, height int) string {
 				if pixel.Underline {
 					style = style.Underline(true)
 				}
-				
+
 				line = append(line, style.Render(string(pixel.Char)))
 			} else {
 				line = append(line, " ")
 			}
 		}
-		
+
 		lines = append(lines, strings.Join(line, ""))
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -149,7 +149,7 @@ func (c *Canvas) GetViewport(startX, startY, width, height int) string {
 func (c *Canvas) SetViewport(x, y int) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	c.viewportX = x
 	c.viewportY = y
 }
@@ -158,7 +158,7 @@ func (c *Canvas) SetViewport(x, y int) {
 func (c *Canvas) GetViewportPos() (x, y int) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	return c.viewportX, c.viewportY
 }
 
@@ -166,7 +166,7 @@ func (c *Canvas) GetViewportPos() (x, y int) {
 func (c *Canvas) CenterViewportOn(x, y, viewWidth, viewHeight int) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	c.viewportX = x - viewWidth/2
 	c.viewportY = y - viewHeight/2
 }
@@ -175,29 +175,29 @@ func (c *Canvas) CenterViewportOn(x, y, viewWidth, viewHeight int) {
 func (c *Canvas) GetViewportCentered(width, height int) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	// The viewportX/Y from CenterViewportOn represents the top-left corner of the view
 	startX := c.viewportX
 	startY := c.viewportY
-	
+
 	return c.getViewportInternal(startX, startY, width, height)
 }
 
 // getViewportInternal is the internal viewport rendering method (assumes lock held)
 func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 	var lines []string
-	
+
 	for y := startY; y < startY+height; y++ {
 		var line []string
-		
+
 		for x := startX; x < startX+width; x++ {
 			// Get composited pixel from all layers
 			pixel := c.layers.GetCompositePixel(x, y)
-			
+
 			if pixel.Char != ' ' {
 				// Create styled character using Lipgloss
 				style := lipgloss.NewStyle()
-				
+
 				if pixel.Foreground != "" {
 					style = style.Foreground(lipgloss.Color(pixel.Foreground))
 				}
@@ -213,16 +213,16 @@ func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 				if pixel.Underline {
 					style = style.Underline(true)
 				}
-				
+
 				line = append(line, style.Render(string(pixel.Char)))
 			} else {
 				line = append(line, " ")
 			}
 		}
-		
+
 		lines = append(lines, strings.Join(line, ""))
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -230,11 +230,11 @@ func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 func (c *Canvas) GetBounds() (minX, minY, maxX, maxY int) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	if !c.initialized {
 		return 0, 0, 0, 0
 	}
-	
+
 	return c.minX, c.minY, c.maxX, c.maxY
 }
 
@@ -242,7 +242,7 @@ func (c *Canvas) GetBounds() (minX, minY, maxX, maxY int) {
 func (c *Canvas) GetPixelCount() int {
 	// This is an approximation - we'd need to iterate through all coordinates
 	// to get the exact count after compositing. For now, return a simple count.
-	
+
 	// TODO: Implement proper pixel counting with layer compositing
 	return 42 // Placeholder - should iterate through actual drawn area
 }
