@@ -202,11 +202,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ### Preferences Architecture
 - [ ] `~/.config/cadubi/` directory structure:
-  - [ ] `preferences.json` - User settings and theme choice
+  - [ ] `settings.json` - User settings including theme choice (light/dark mode preference)
   - [ ] `keybindings.json` - Custom keybinding overrides
   - [ ] `palettes/` - Custom color palette storage
   - [ ] `themes/` - User-created theme definitions
 - [ ] PreferencesManager class with reactive updates
+- [ ] First-run detection: Check if settings.json exists to trigger theme selection
+- [ ] Settings persistence: Automatically save theme choice and other preferences
 - [ ] Migration system for upgrading preference formats
 
 ### Theme System Implementation
@@ -238,7 +240,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ### First-Run Experience
 - [ ] Welcome dialog with CADUBI branding
-- [ ] "Choose your theme" selection screen
+- [ ] Theme selection prompt on first startup:
+  - [ ] Present light mode vs dark mode choice with visual previews
+  - [ ] Save user selection to ~/.config/cadubi/settings.json
+  - [ ] Set as default theme for all future sessions
+  - [ ] Allow theme switching later via preferences (Ctrl+T)
 - [ ] Quick feature tour with interactive examples
 - [ ] Preference setup wizard
 - [ ] Optional sample project creation
@@ -367,7 +373,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Dynamic theme switching (Ctrl+T)
   - [ ] Theme-aware color palettes
 - [ ] First-run experience:
-  - [ ] Welcome screen with theme selection
+  - [ ] Welcome screen with mandatory theme selection (light/dark mode)
+  - [ ] Theme preference saved to ~/.config/cadubi/settings.json on first run
   - [ ] Quick start tutorial
   - [ ] Preference migration from v1
 - [ ] Interactive tutorials: Built-in learning mode
