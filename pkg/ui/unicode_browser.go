@@ -166,10 +166,20 @@ func (ub *UnicodeBrowser) Update(msg tea.Msg) tea.Cmd {
 	case tea.WindowSizeMsg:
 		ub.width = msg.Width
 		ub.height = msg.Height
-		// Adjust layout based on terminal size - account for wide characters
-		// Each character cell needs space for potential wide chars (up to 2 columns + spacing)
-		ub.charactersPerRow = max(8, min(32, (msg.Width-4)/4))
-		ub.rowsPerPage = max(4, min(16, (msg.Height-8)/2))
+		// Calculate modal content width
+		modalWidth := ub.width - 8  // Account for screen margins
+		if modalWidth < 60 {
+			modalWidth = 60
+		}
+		if modalWidth > 120 {
+			modalWidth = 120
+		}
+		// Store available width for dynamic row calculation
+		ub.width = msg.Width
+		ub.height = msg.Height
+		// Set reasonable defaults that will be dynamically adjusted
+		ub.charactersPerRow = 16  // This will be recalculated per row
+		ub.rowsPerPage = max(4, min(12, (msg.Height-12)/2))
 
 	case tea.KeyMsg:
 		return ub.handleKeyPress(msg)
@@ -209,15 +219,9 @@ func (ub *UnicodeBrowser) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 			ub.currentChar++
 		}
 	case "up", "k":
-		newPos := ub.currentChar - ub.charactersPerRow
-		if newPos >= 0 {
-			ub.currentChar = newPos
-		}
+		ub.navigateUp(maxChars)
 	case "down", "j":
-		newPos := ub.currentChar + ub.charactersPerRow
-		if newPos < maxChars {
-			ub.currentChar = newPos
-		}
+		ub.navigateDown(maxChars)
 	case "pageup", "ctrl+b":
 		newPos := ub.currentChar - (ub.charactersPerRow * ub.rowsPerPage)
 		if newPos < 0 {
@@ -575,7 +579,7 @@ func (ub *UnicodeBrowser) renderCategoryTabs() string {
 	return strings.Join(tabs, " ")
 }
 
-// renderCharacterGrid renders the character selection grid
+// renderCharacterGrid renders the character selection grid with proper width handling
 func (ub *UnicodeBrowser) renderCharacterGrid(selectedStyle, normalStyle lipgloss.Style) string {
 	currentCategory := &ub.categories[ub.currentCat]
 	characters := currentCategory.Characters
@@ -584,48 +588,110 @@ func (ub *UnicodeBrowser) renderCharacterGrid(selectedStyle, normalStyle lipglos
 		return normalStyle.Render("No characters available in this category")
 	}
 
-	// Calculate visible range for current page
-	currentPage := ub.currentChar / (ub.charactersPerRow * ub.rowsPerPage)
-	startIdx := currentPage * ub.charactersPerRow * ub.rowsPerPage
-	endIdx := min(startIdx+(ub.charactersPerRow*ub.rowsPerPage), len(characters))
-
+	contentWidth := ub.getContentWidth()
+	currentIdx := 0
 	var lines []string
-	for row := 0; row < ub.rowsPerPage; row++ {
-		var line strings.Builder
-		
-		for col := 0; col < ub.charactersPerRow; col++ {
-			charIdx := startIdx + (row * ub.charactersPerRow) + col
-			
-			if charIdx >= endIdx {
-				line.WriteString("   ") // Empty space for alignment
-				continue
-			}
-
-			char := characters[charIdx]
-			// Use proper spacing that accounts for character display width
-			charStr := fmt.Sprintf(" %c ", char)
-			charWidth := unicode.CharWidth(char)
-			
-			// Add padding for narrow chars or adjust spacing for wide chars
-			if charWidth == 1 {
-				charStr = fmt.Sprintf(" %c  ", char) // Extra space for narrow chars
-			} else {
-				charStr = fmt.Sprintf(" %c ", char) // Wide chars need less padding
-			}
-
-			if charIdx == ub.currentChar {
-				line.WriteString(selectedStyle.Render(charStr))
-			} else {
-				line.WriteString(normalStyle.Render(charStr))
-			}
+	
+	// Find which page we should show based on current character
+	targetRowStart := 0
+	charsSoFar := 0
+	
+	for row := 0; row < 100 && charsSoFar <= ub.currentChar; row++ { // Limit iterations for safety
+		rowChars := ub.calculateCharsPerRow(characters, charsSoFar, len(characters), contentWidth)
+		if charsSoFar <= ub.currentChar && ub.currentChar < charsSoFar+rowChars {
+			targetRowStart = row
+			break
 		}
-		
-		if line.Len() > 0 {
-			lines = append(lines, line.String())
+		charsSoFar += rowChars
+	}
+	
+	// Calculate page start (show a few rows before target if possible)
+	pageStartRow := max(0, targetRowStart-ub.rowsPerPage/2)
+	
+	// Skip to page start
+	currentIdx = 0
+	for row := 0; row < pageStartRow && currentIdx < len(characters); row++ {
+		charsInRow := ub.calculateCharsPerRow(characters, currentIdx, len(characters), contentWidth)
+		currentIdx += charsInRow
+	}
+
+	// Render the visible rows
+	for row := 0; row < ub.rowsPerPage && currentIdx < len(characters); row++ {
+		line := ub.renderCharacterRow(characters, currentIdx, len(characters), contentWidth, selectedStyle, normalStyle)
+		if line != "" {
+			lines = append(lines, line)
 		}
+		charsInRow := ub.calculateCharsPerRow(characters, currentIdx, len(characters), contentWidth)
+		currentIdx += charsInRow
+	}
+
+	if len(lines) == 0 {
+		return normalStyle.Render("No characters to display")
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// calculateCharsPerRow determines how many characters fit in a row given the available width
+func (ub *UnicodeBrowser) calculateCharsPerRow(characters []rune, startIdx, totalChars, availableWidth int) int {
+	if startIdx >= totalChars {
+		return 0
+	}
+	
+	currentWidth := 0
+	charCount := 0
+	
+	for i := startIdx; i < totalChars && charCount < 32; i++ { // Limit to reasonable number
+		char := characters[i]
+		charDisplayWidth := unicode.CharWidth(char)
+		// Each character needs its display width + 2 spaces padding
+		charTotalWidth := charDisplayWidth + 2
+		
+		if currentWidth+charTotalWidth > availableWidth {
+			break
+		}
+		
+		currentWidth += charTotalWidth
+		charCount++
+	}
+	
+	return max(1, charCount) // Always show at least 1 character per row
+}
+
+// renderCharacterRow renders a single row of characters
+func (ub *UnicodeBrowser) renderCharacterRow(characters []rune, startIdx, totalChars, availableWidth int, selectedStyle, normalStyle lipgloss.Style) string {
+	if startIdx >= totalChars {
+		return ""
+	}
+	
+	charsInRow := ub.calculateCharsPerRow(characters, startIdx, totalChars, availableWidth)
+	var line strings.Builder
+	
+	for i := 0; i < charsInRow; i++ {
+		charIdx := startIdx + i
+		if charIdx >= totalChars {
+			break
+		}
+		
+		char := characters[charIdx]
+		charDisplayWidth := unicode.CharWidth(char)
+		
+		// Create character string with appropriate padding
+		var charStr string
+		if charDisplayWidth == 1 {
+			charStr = fmt.Sprintf(" %c ", char) // 1-width char + 2 spaces = 3 total
+		} else {
+			charStr = fmt.Sprintf(" %c", char) // 2-width char + 1 space = 3 total
+		}
+		
+		if charIdx == ub.currentChar {
+			line.WriteString(selectedStyle.Render(charStr))
+		} else {
+			line.WriteString(normalStyle.Render(charStr))
+		}
+	}
+	
+	return line.String()
 }
 
 // renderEmptyRecent renders the empty recent characters view
@@ -659,54 +725,264 @@ func (ub *UnicodeBrowser) renderRecentHeader() string {
 	return fmt.Sprintf("Recent Characters (%d/%d used)", len(ub.recentChars), ub.maxRecentChars)
 }
 
-// renderRecentGrid renders the recent characters grid
+// renderRecentGrid renders the recent characters grid with proper width handling
 func (ub *UnicodeBrowser) renderRecentGrid(selectedStyle, normalStyle lipgloss.Style) string {
 	if len(ub.recentChars) == 0 {
 		return normalStyle.Render("No recent characters")
 	}
 
-	// Calculate visible range for current page
-	currentPage := ub.currentChar / (ub.charactersPerRow * ub.rowsPerPage)
-	startIdx := currentPage * ub.charactersPerRow * ub.rowsPerPage
-	endIdx := min(startIdx+(ub.charactersPerRow*ub.rowsPerPage), len(ub.recentChars))
-
+	contentWidth := ub.getContentWidth()
+	currentIdx := 0
 	var lines []string
-	for row := 0; row < ub.rowsPerPage; row++ {
-		var line strings.Builder
-		
-		for col := 0; col < ub.charactersPerRow; col++ {
-			charIdx := startIdx + (row * ub.charactersPerRow) + col
-			
-			if charIdx >= endIdx {
-				line.WriteString("   ") // Empty space for alignment
-				continue
-			}
-
-			char := ub.recentChars[charIdx]
-			// Use proper spacing that accounts for character display width
-			charStr := fmt.Sprintf(" %c ", char)
-			charWidth := unicode.CharWidth(char)
-			
-			// Add padding for narrow chars or adjust spacing for wide chars
-			if charWidth == 1 {
-				charStr = fmt.Sprintf(" %c  ", char) // Extra space for narrow chars
-			} else {
-				charStr = fmt.Sprintf(" %c ", char) // Wide chars need less padding
-			}
-
-			if charIdx == ub.currentChar {
-				line.WriteString(selectedStyle.Render(charStr))
-			} else {
-				line.WriteString(normalStyle.Render(charStr))
-			}
+	
+	// Find which page we should show based on current character
+	targetRowStart := 0
+	charsSoFar := 0
+	
+	for row := 0; row < 100 && charsSoFar <= ub.currentChar; row++ { // Limit iterations for safety
+		rowChars := ub.calculateCharsPerRowRecent(ub.recentChars, charsSoFar, len(ub.recentChars), contentWidth)
+		if charsSoFar <= ub.currentChar && ub.currentChar < charsSoFar+rowChars {
+			targetRowStart = row
+			break
 		}
-		
-		if line.Len() > 0 {
-			lines = append(lines, line.String())
+		charsSoFar += rowChars
+	}
+	
+	// Calculate page start (show a few rows before target if possible)
+	pageStartRow := max(0, targetRowStart-ub.rowsPerPage/2)
+	
+	// Skip to page start
+	currentIdx = 0
+	for row := 0; row < pageStartRow && currentIdx < len(ub.recentChars); row++ {
+		charsInRow := ub.calculateCharsPerRowRecent(ub.recentChars, currentIdx, len(ub.recentChars), contentWidth)
+		currentIdx += charsInRow
+	}
+
+	// Render the visible rows
+	for row := 0; row < ub.rowsPerPage && currentIdx < len(ub.recentChars); row++ {
+		line := ub.renderCharacterRowRecent(ub.recentChars, currentIdx, len(ub.recentChars), contentWidth, selectedStyle, normalStyle)
+		if line != "" {
+			lines = append(lines, line)
 		}
+		charsInRow := ub.calculateCharsPerRowRecent(ub.recentChars, currentIdx, len(ub.recentChars), contentWidth)
+		currentIdx += charsInRow
+	}
+
+	if len(lines) == 0 {
+		return normalStyle.Render("No recent characters to display")
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// calculateCharsPerRowRecent determines how many recent characters fit in a row
+func (ub *UnicodeBrowser) calculateCharsPerRowRecent(characters []rune, startIdx, totalChars, availableWidth int) int {
+	if startIdx >= totalChars {
+		return 0
+	}
+	
+	currentWidth := 0
+	charCount := 0
+	
+	for i := startIdx; i < totalChars && charCount < 32; i++ { // Limit to reasonable number
+		char := characters[i]
+		charDisplayWidth := unicode.CharWidth(char)
+		// Each character needs its display width + 2 spaces padding
+		charTotalWidth := charDisplayWidth + 2
+		
+		if currentWidth+charTotalWidth > availableWidth {
+			break
+		}
+		
+		currentWidth += charTotalWidth
+		charCount++
+	}
+	
+	return max(1, charCount) // Always show at least 1 character per row
+}
+
+// renderCharacterRowRecent renders a single row of recent characters
+func (ub *UnicodeBrowser) renderCharacterRowRecent(characters []rune, startIdx, totalChars, availableWidth int, selectedStyle, normalStyle lipgloss.Style) string {
+	if startIdx >= totalChars {
+		return ""
+	}
+	
+	charsInRow := ub.calculateCharsPerRowRecent(characters, startIdx, totalChars, availableWidth)
+	var line strings.Builder
+	
+	for i := 0; i < charsInRow; i++ {
+		charIdx := startIdx + i
+		if charIdx >= totalChars {
+			break
+		}
+		
+		char := characters[charIdx]
+		charDisplayWidth := unicode.CharWidth(char)
+		
+		// Create character string with appropriate padding
+		var charStr string
+		if charDisplayWidth == 1 {
+			charStr = fmt.Sprintf(" %c ", char) // 1-width char + 2 spaces = 3 total
+		} else {
+			charStr = fmt.Sprintf(" %c", char) // 2-width char + 1 space = 3 total
+		}
+		
+		if charIdx == ub.currentChar {
+			line.WriteString(selectedStyle.Render(charStr))
+		} else {
+			line.WriteString(normalStyle.Render(charStr))
+		}
+	}
+	
+	return line.String()
+}
+
+// getContentWidth calculates the available width for character content
+func (ub *UnicodeBrowser) getContentWidth() int {
+	modalWidth := ub.width - 8  // Account for screen margins
+	if modalWidth < 60 {
+		modalWidth = 60
+	}
+	if modalWidth > 120 {
+		modalWidth = 120
+	}
+	// Account for modal border (2) + padding (4) = 6 chars
+	return modalWidth - 6
+}
+
+// navigateUp moves selection up one row, handling variable width rows
+func (ub *UnicodeBrowser) navigateUp(maxChars int) {
+	if ub.currentChar <= 0 {
+		return
+	}
+	
+	var characters []rune
+	if ub.showRecent {
+		characters = ub.recentChars
+	} else {
+		characters = ub.categories[ub.currentCat].Characters
+	}
+	
+	if len(characters) == 0 {
+		return
+	}
+	
+	contentWidth := ub.getContentWidth()
+	
+	// Find current row start
+	currentRowStart := 0
+	for i := 0; i < ub.currentChar; {
+		var charsInRow int
+		if ub.showRecent {
+			charsInRow = ub.calculateCharsPerRowRecent(characters, i, len(characters), contentWidth)
+		} else {
+			charsInRow = ub.calculateCharsPerRow(characters, i, len(characters), contentWidth)
+		}
+		if i + charsInRow > ub.currentChar {
+			currentRowStart = i
+			break
+		}
+		i += charsInRow
+	}
+	
+	// If already at first row, do nothing
+	if currentRowStart == 0 {
+		return
+	}
+	
+	// Find previous row start
+	prevRowStart := 0
+	for i := 0; i < currentRowStart; {
+		var charsInRow int
+		if ub.showRecent {
+			charsInRow = ub.calculateCharsPerRowRecent(characters, i, len(characters), contentWidth)
+		} else {
+			charsInRow = ub.calculateCharsPerRow(characters, i, len(characters), contentWidth)
+		}
+		if i + charsInRow >= currentRowStart {
+			prevRowStart = i
+			break
+		}
+		i += charsInRow
+	}
+	
+	// Calculate position in current row
+	positionInRow := ub.currentChar - currentRowStart
+	
+	// Find chars in previous row
+	var prevRowChars int
+	if ub.showRecent {
+		prevRowChars = ub.calculateCharsPerRowRecent(characters, prevRowStart, len(characters), contentWidth)
+	} else {
+		prevRowChars = ub.calculateCharsPerRow(characters, prevRowStart, len(characters), contentWidth)
+	}
+	
+	// Move to corresponding position in previous row (or last char if row is shorter)
+	newPos := prevRowStart + min(positionInRow, prevRowChars-1)
+	if newPos >= 0 && newPos < maxChars {
+		ub.currentChar = newPos
+	}
+}
+
+// navigateDown moves selection down one row, handling variable width rows  
+func (ub *UnicodeBrowser) navigateDown(maxChars int) {
+	if ub.currentChar >= maxChars-1 {
+		return
+	}
+	
+	var characters []rune
+	if ub.showRecent {
+		characters = ub.recentChars
+	} else {
+		characters = ub.categories[ub.currentCat].Characters
+	}
+	
+	if len(characters) == 0 {
+		return
+	}
+	
+	contentWidth := ub.getContentWidth()
+	
+	// Find current row start and chars in current row
+	currentRowStart := 0
+	currentRowChars := 0
+	for i := 0; i <= ub.currentChar; {
+		var charsInRow int
+		if ub.showRecent {
+			charsInRow = ub.calculateCharsPerRowRecent(characters, i, len(characters), contentWidth)
+		} else {
+			charsInRow = ub.calculateCharsPerRow(characters, i, len(characters), contentWidth)
+		}
+		if i + charsInRow > ub.currentChar {
+			currentRowStart = i
+			currentRowChars = charsInRow
+			break
+		}
+		i += charsInRow
+	}
+	
+	// Calculate next row start
+	nextRowStart := currentRowStart + currentRowChars
+	if nextRowStart >= maxChars {
+		return // Already at last row
+	}
+	
+	// Calculate position in current row
+	positionInRow := ub.currentChar - currentRowStart
+	
+	// Find chars in next row
+	var nextRowChars int
+	if ub.showRecent {
+		nextRowChars = ub.calculateCharsPerRowRecent(characters, nextRowStart, len(characters), contentWidth)
+	} else {
+		nextRowChars = ub.calculateCharsPerRow(characters, nextRowStart, len(characters), contentWidth)
+	}
+	
+	// Move to corresponding position in next row (or last char if row is shorter)
+	newPos := nextRowStart + min(positionInRow, nextRowChars-1)
+	if newPos >= 0 && newPos < maxChars {
+		ub.currentChar = newPos
+	}
 }
 
 // Helper functions
