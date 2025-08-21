@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cadubi/cadubi/pkg/unicode"
 )
 
 // UnicodeCategory represents a category of Unicode characters
@@ -77,6 +78,16 @@ func NewUnicodeBrowser() *UnicodeBrowser {
 			Name:      "Miscellaneous Symbols",
 			StartCode: 0x2600,
 			EndCode:   0x26FF,
+		},
+		{
+			Name:      "Emoji",
+			StartCode: 0x1F600,
+			EndCode:   0x1F64F,
+		},
+		{
+			Name:      "Emoji Symbols",
+			StartCode: 0x1F300,
+			EndCode:   0x1F5FF,
 		},
 	}
 
@@ -155,8 +166,9 @@ func (ub *UnicodeBrowser) Update(msg tea.Msg) tea.Cmd {
 	case tea.WindowSizeMsg:
 		ub.width = msg.Width
 		ub.height = msg.Height
-		// Adjust layout based on terminal size
-		ub.charactersPerRow = max(8, min(32, (msg.Width-4)/3))
+		// Adjust layout based on terminal size - account for wide characters
+		// Each character cell needs space for potential wide chars (up to 2 columns + spacing)
+		ub.charactersPerRow = max(8, min(32, (msg.Width-4)/4))
 		ub.rowsPerPage = max(4, min(16, (msg.Height-8)/2))
 
 	case tea.KeyMsg:
@@ -354,8 +366,8 @@ func (ub *UnicodeBrowser) handleCharacterGridClick(x, y int) tea.Cmd {
 	}
 	
 	// Calculate character position from click coordinates
-	// Each character takes 3 spaces (" X "), so x position / 3 gives column
-	col := x / 3
+	// Each character takes approximately 4 spaces (to account for wide chars), so x position / 4 gives column
+	col := x / 4
 	row := y
 	
 	if col >= ub.charactersPerRow || row >= ub.rowsPerPage {
@@ -590,7 +602,16 @@ func (ub *UnicodeBrowser) renderCharacterGrid(selectedStyle, normalStyle lipglos
 			}
 
 			char := characters[charIdx]
+			// Use proper spacing that accounts for character display width
 			charStr := fmt.Sprintf(" %c ", char)
+			charWidth := unicode.CharWidth(char)
+			
+			// Add padding for narrow chars or adjust spacing for wide chars
+			if charWidth == 1 {
+				charStr = fmt.Sprintf(" %c  ", char) // Extra space for narrow chars
+			} else {
+				charStr = fmt.Sprintf(" %c ", char) // Wide chars need less padding
+			}
 
 			if charIdx == ub.currentChar {
 				line.WriteString(selectedStyle.Render(charStr))
@@ -662,7 +683,16 @@ func (ub *UnicodeBrowser) renderRecentGrid(selectedStyle, normalStyle lipgloss.S
 			}
 
 			char := ub.recentChars[charIdx]
+			// Use proper spacing that accounts for character display width
 			charStr := fmt.Sprintf(" %c ", char)
+			charWidth := unicode.CharWidth(char)
+			
+			// Add padding for narrow chars or adjust spacing for wide chars
+			if charWidth == 1 {
+				charStr = fmt.Sprintf(" %c  ", char) // Extra space for narrow chars
+			} else {
+				charStr = fmt.Sprintf(" %c ", char) // Wide chars need less padding
+			}
 
 			if charIdx == ub.currentChar {
 				line.WriteString(selectedStyle.Render(charStr))

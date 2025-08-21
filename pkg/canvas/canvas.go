@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/cadubi/cadubi/pkg/commands"
+	"github.com/cadubi/cadubi/pkg/unicode"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -133,7 +134,13 @@ func (c *Canvas) GetViewport(startX, startY, width, height int) string {
 					style = style.Underline(true)
 				}
 
-				line = append(line, style.Render(string(pixel.Char)))
+				styledChar := style.Render(string(pixel.Char))
+				line = append(line, styledChar)
+				
+				// For wide characters (like emoji), skip the next column to avoid double-rendering
+				if unicode.IsWideChar(pixel.Char) {
+					x++ // Skip next column since wide char occupies 2 cells
+				}
 			} else {
 				line = append(line, " ")
 			}
@@ -214,7 +221,13 @@ func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 					style = style.Underline(true)
 				}
 
-				line = append(line, style.Render(string(pixel.Char)))
+				styledChar := style.Render(string(pixel.Char))
+				line = append(line, styledChar)
+				
+				// For wide characters (like emoji), skip the next column to avoid double-rendering
+				if unicode.IsWideChar(pixel.Char) {
+					x++ // Skip next column since wide char occupies 2 cells
+				}
 			} else {
 				line = append(line, " ")
 			}
