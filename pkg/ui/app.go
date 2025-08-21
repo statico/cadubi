@@ -12,10 +12,15 @@ import (
 
 // Define adaptive colors following Charm's patterns
 var (
-	borderColor = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both
-	statusColor = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both  
-	cursorBg    = lipgloss.AdaptiveColor{Light: "0", Dark: "7"}           // Dark on light, light on dark
-	cursorFg    = lipgloss.AdaptiveColor{Light: "15", Dark: "0"}          // Light on light, dark on dark
+	borderColor     = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both
+	statusColor     = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both  
+	cursorBg        = lipgloss.AdaptiveColor{Light: "0", Dark: "7"}             // Dark on light, light on dark
+	cursorFg        = lipgloss.AdaptiveColor{Light: "15", Dark: "0"}            // Light on light, dark on dark
+	modalBorder     = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"} // Purple highlight
+	modalBackground = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"} // Terminal background
+	activeTabBg     = lipgloss.AdaptiveColor{Light: "#E5E7EB", Dark: "#374151"} // Light grey / dark grey
+	activeTabFg     = lipgloss.AdaptiveColor{Light: "#111827", Dark: "#F9FAFB"} // Dark on light / light on dark
+	inactiveTabFg   = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"} // Muted text
 )
 
 // App represents the main application state
@@ -619,22 +624,23 @@ func (a *App) View() string {
 
 // renderHelpModal renders the help modal dialog
 func (a *App) renderHelpModal() string {
-	// Create modal styles
+	// Create modal styles using adaptive colors
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("6")).
+		BorderForeground(modalBorder).
+		Background(modalBackground).
 		Padding(1, 2)
 	
 	tabBarStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
+		Foreground(inactiveTabFg)
 		
 	activeTabStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("8")).
+		Foreground(activeTabFg).
+		Background(activeTabBg).
 		Padding(0, 1)
 		
 	inactiveTabStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8")).
+		Foreground(inactiveTabFg).
 		Padding(0, 1)
 	
 	// Create tab bar
@@ -684,23 +690,23 @@ func (a *App) renderHelpModal() string {
 
 // renderHelpModalOverlay renders the help modal overlaid on the main view
 func (a *App) renderHelpModalOverlay(mainView string) string {
-	// Create modal content same as before
+	// Create modal content using adaptive colors
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("6")).
+		BorderForeground(modalBorder).
 		Padding(1, 2).
-		Background(lipgloss.Color("0")) // Use terminal background
+		Background(modalBackground)
 	
 	tabBarStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
+		Foreground(inactiveTabFg)
 		
 	activeTabStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("8")).
+		Foreground(activeTabFg).
+		Background(activeTabBg).
 		Padding(0, 1)
 		
 	inactiveTabStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8")).
+		Foreground(inactiveTabFg).
 		Padding(0, 1)
 	
 	// Create tab bar
