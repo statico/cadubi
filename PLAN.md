@@ -290,25 +290,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Layer management dialog with pagination for many layers
   - [ ] Status messages with bubble styling
 
-## Phase 5: Unicode Explorer & Character Palette System 📋 PLANNED
+## Phase 5: Unicode Explorer & Character Palette System ✅ IN PROGRESS
 
-### Unicode Character Explorer
-- [ ] **Unicode Character Browser**: Interactive explorer for non-emoji Unicode characters
-  - [ ] **Dingbats Plane** (U+2700–U+27BF): ✂✉☎✏✈⚡⚾⛄⭐ etc.
-  - [ ] **Mathematical Operators** (U+2200–U+22FF): ∀∃∈∉∑∏∫∞√± etc.
-  - [ ] **Mathematical Symbols** (U+2900–U+297F): ⤀⤁⤂⤃⤄⤅⤆⤇ etc.
-  - [ ] **Geometric Shapes Extended** (U+1F780–U+1F7FF): 🞀🞁🞂🞃🞄🞅 etc.
-  - [ ] Navigation with keyboard shortcuts (arrow keys, page up/down)
-  - [ ] Character preview with Unicode codepoint display
-  - [ ] Click-to-select character for pen tool
-  - [ ] Search functionality by name or codepoint
+### Unicode Character Explorer ✅ COMPLETED
+- [x] **Unicode Character Browser**: Interactive explorer for non-emoji Unicode characters
+  - [x] **Dingbats Plane** (U+2700–U+27BF): ✂✉☎✏✈⚡⚾⛄⭐ etc.
+  - [x] **Mathematical Operators** (U+2200–U+22FF): ∀∃∈∉∑∏∫∞√± etc.
+  - [x] **Mathematical Symbols** (U+2900–U+297F): ⤀⤁⤂⤃⤄⤅⤆⤇ etc.
+  - [x] **Geometric Shapes** (U+25A0–U+25FF): Box drawing, mathematical shapes etc.
+  - [x] **Block Elements** (U+2580–U+259F): Terminal block characters
+  - [x] **Box Drawing** (U+2500–U+257F): Border and line characters
+  - [x] **Arrows** (U+2190–U+21FF): Directional arrows
+  - [x] **Miscellaneous Symbols** (U+2600–U+26FF): Various utility symbols
+  - [x] Navigation with keyboard shortcuts (arrow keys, hjkl, page up/down)
+  - [x] Character preview with Unicode codepoint display
+  - [x] Category switching with tab navigation (< >)
+  - [x] Modal overlay interface with proper styling
+  - [x] Keyboard shortcut 's' to open Unicode browser
+  - [x] Enter/Space to select character and auto-close
 
-### Quick Palette System
-- [ ] **Recent Characters Palette**: Automatic tracking of last 20 used characters
-  - [ ] Sidebar toggle for character swatches (S key or Ctrl+S)
-  - [ ] Visual character grid with click-to-select
-  - [ ] Most recently used at top, chronological ordering
-  - [ ] Clear recent history option
+### Quick Palette System ✅ COMPLETED
+- [x] **Recent Characters Palette**: Automatic tracking of last 20 used characters
+  - [x] Toggle between category and recent view ('r' key)
+  - [x] Visual character grid with navigation
+  - [x] Most recently used at top, chronological ordering
+  - [x] Clear recent history option ('c' key in recent view)
+  - [x] Automatic tracking when characters are selected from browser
+  - [x] Smart filtering (only non-ASCII characters tracked)
+  - [x] Full navigation support within recent characters
 - [ ] **Recent Colors Palette**: Track last 20 used colors
   - [ ] Color swatch grid with visual preview
   - [ ] Integration with existing color picker system

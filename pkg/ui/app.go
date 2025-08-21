@@ -66,13 +66,14 @@ type KeyMap struct {
 	Redo key.Binding
 
 	// General
-	Help key.Binding
-	Quit key.Binding
+	Help           key.Binding
+	UnicodeBrowser key.Binding
+	Quit           key.Binding
 }
 
 // ShortHelp returns keybindings to be shown in the mini help view
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit, k.Draw, k.Erase, k.Undo, k.Redo}
+	return []key.Binding{k.Help, k.UnicodeBrowser, k.Quit, k.Draw, k.Erase, k.Undo, k.Redo}
 }
 
 // FullHelp returns keybindings for the expanded help view
@@ -83,8 +84,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.PenAsterisk, k.PenHash, k.PenPlus, k.PenMinus, k.PenPipe},   // Pen tools
 		{k.CycleColors, k.ColorWhite, k.ColorGreen, k.ColorYellow},     // Colors
 		{k.Layer1, k.Layer2, k.Layer3, k.NewLayer, k.ToggleVisibility}, // Layers
-		{k.Undo, k.Redo}, // History
-		{k.Help, k.Quit}, // General
+		{k.Undo, k.Redo},                  // History
+		{k.Help, k.UnicodeBrowser, k.Quit}, // General
 	}
 }
 
@@ -212,6 +213,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("?"),
 			key.WithHelp("?", "toggle help"),
 		),
+		UnicodeBrowser: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "unicode browser"),
+		),
 		Quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
@@ -221,19 +226,20 @@ func DefaultKeyMap() KeyMap {
 
 // App represents the main application state
 type App struct {
-	canvas      *canvas.Canvas
-	history     *commands.CommandHistory
-	ctx         *commands.CommandContext
-	cursor      commands.CursorState
-	layers      *LayerManager
-	width       int
-	height      int
-	viewportX   int
-	viewportY   int
-	currentTool string
-	showHelp    bool
-	keyMap      KeyMap
-	help        help.Model
+	canvas         *canvas.Canvas
+	history        *commands.CommandHistory
+	ctx            *commands.CommandContext
+	cursor         commands.CursorState
+	layers         *LayerManager
+	width          int
+	height         int
+	viewportX      int
+	viewportY      int
+	currentTool    string
+	showHelp       bool
+	unicodeBrowser *UnicodeBrowser
+	keyMap         KeyMap
+	help           help.Model
 }
 
 // LayerManager is a simple implementation of the layer manager interface
@@ -326,14 +332,15 @@ func NewApp() *App {
 	}
 
 	return &App{
-		canvas:      c,
-		history:     commands.NewCommandHistory(1000),
-		ctx:         ctx,
-		cursor:      cursor,
-		layers:      layers,
-		currentTool: "pen",
-		keyMap:      DefaultKeyMap(),
-		help:        help.New(),
+		canvas:         c,
+		history:        commands.NewCommandHistory(1000),
+		ctx:            ctx,
+		cursor:         cursor,
+		layers:         layers,
+		currentTool:    "pen",
+		unicodeBrowser: NewUnicodeBrowser(),
+		keyMap:         DefaultKeyMap(),
+		help:           help.New(),
 	}
 }
 
@@ -344,16 +351,51 @@ func (a *App) Init() tea.Cmd {
 
 // Update handles messages and updates the application state
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
+		// Forward to Unicode browser
+		cmd := a.unicodeBrowser.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 
 	case tea.KeyMsg:
-		return a.handleKeyPress(msg)
+		// If Unicode browser is visible, handle its keys first
+		if a.unicodeBrowser.IsVisible() {
+			cmd := a.unicodeBrowser.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			
+			// Check if character was selected (Enter/Space was pressed)
+			if msg.String() == "enter" || msg.String() == " " {
+				newChar := a.unicodeBrowser.GetSelectedChar()
+				a.setPenChar(newChar)
+				a.unicodeBrowser.AddRecentChar(newChar) // Track in recent characters
+				a.unicodeBrowser.Hide() // Close browser after selection
+			}
+			
+			// Don't process main app keys when browser is open, except for close
+			if msg.String() != "escape" && msg.String() != "esc" && msg.String() != "q" {
+				return a, tea.Batch(cmds...)
+			}
+		}
+		
+		model, cmd := a.handleKeyPress(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return model, tea.Batch(cmds...)
 
 	case tea.MouseMsg:
-		return a.handleMouseEvent(msg)
+		// Only handle mouse events if Unicode browser is not visible
+		if !a.unicodeBrowser.IsVisible() {
+			return a.handleMouseEvent(msg)
+		}
 	}
 
 	return a, nil
@@ -552,10 +594,24 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle help modal
 		a.showHelp = !a.showHelp
 
+	case "s":
+		// Toggle Unicode browser
+		if !a.showHelp { // Don't open browser if help is open
+			a.unicodeBrowser.Toggle()
+			// If a character was selected, update pen character
+			if a.unicodeBrowser.IsVisible() {
+				selectedChar := a.unicodeBrowser.GetSelectedChar()
+				a.setPenChar(selectedChar)
+			}
+		}
+
 	case "escape", "esc":
-		// Close help modal if open
+		// Close modals if open
 		if a.showHelp {
 			a.showHelp = false
+		}
+		if a.unicodeBrowser.IsVisible() {
+			a.unicodeBrowser.Hide()
 		}
 
 	}
@@ -614,6 +670,10 @@ func (a *App) redo() {
 func (a *App) setPenChar(char rune) {
 	a.cursor.Pen.Char = char
 	a.ctx.Cursor.Pen.Char = char
+	// Add to recent characters if it's not a basic ASCII character
+	if char > 127 {
+		a.unicodeBrowser.AddRecentChar(char)
+	}
 }
 
 // setPenColor changes the pen color
@@ -706,7 +766,7 @@ func (a *App) View() string {
 
 	// Instructions
 	instructions := statusStyle.Render(
-		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v │ Help: ?",
+		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v │ Unicode: s │ Help: ?",
 	)
 
 	// Create the main view
@@ -720,6 +780,13 @@ func (a *App) View() string {
 		helpView := a.help.View(a.keyMap)
 
 		return lipgloss.JoinVertical(lipgloss.Left, mainView, "", helpView)
+	}
+
+	// If Unicode browser is visible, overlay it on the main view
+	if a.unicodeBrowser.IsVisible() {
+		browserView := a.unicodeBrowser.View()
+		// Center the browser on the screen
+		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, browserView, lipgloss.WithWhitespaceChars(""))
 	}
 
 	return mainView
