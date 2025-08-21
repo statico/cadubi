@@ -19,11 +19,7 @@ var (
 	statusColor     = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"} // Dim grey for both
 	cursorBg        = lipgloss.AdaptiveColor{Light: "0", Dark: "7"}             // Dark on light, light on dark
 	cursorFg        = lipgloss.AdaptiveColor{Light: "15", Dark: "0"}            // Light on light, dark on dark
-	modalBorder     = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"} // Purple highlight
-	modalBackground = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"} // Terminal background
-	activeTabBg     = lipgloss.AdaptiveColor{Light: "#E5E7EB", Dark: "#374151"} // Light grey / dark grey
-	activeTabFg     = lipgloss.AdaptiveColor{Light: "#111827", Dark: "#F9FAFB"} // Dark on light / light on dark
-	inactiveTabFg   = lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"} // Muted text
+	// Minimal styling - no custom colors for modals
 )
 
 // KeyMap defines keybindings for the application

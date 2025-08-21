@@ -139,6 +139,20 @@ The application now provides a clean, professional experience that automatically
 - **Navigation**: ◀▶▲▼ (arrows) / ┌┘ (corners)
 - **Modal Borders**: ╭─── (rounded corners) instead of ┌─── (square)
 
+### 🎨 Minimal Color Styling Guidelines
+
+**Philosophy**: Build functionality first, styling second.
+- **Minimize background colors**: Only use when absolutely necessary for clarity (e.g., active tabs)
+- **Minimal foreground colors**: Rely on terminal defaults, use color sparingly for highlights
+- **Focus on structure over decoration**: Use borders, spacing, and typography for visual hierarchy
+- **Adaptive colors only**: When colors are needed, use `lipgloss.AdaptiveColor` patterns
+- **Examples of good minimal styling**:
+  - Selected items: underline + bold (no background)
+  - Navigation tabs: background color only for active state
+  - Status indicators: symbols first, color second
+  - Error states: bold text before adding color
+- **Priority order**: Layout → Typography → Symbols → Colors
+
 ### Terminal Enhancement Features:
 
 - [ ] Support advanced terminal text modes:

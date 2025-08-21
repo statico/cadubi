@@ -275,48 +275,9 @@ func (ub *UnicodeBrowser) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 // handleMouseEvent processes mouse input for the Unicode browser
 func (ub *UnicodeBrowser) handleMouseEvent(msg tea.MouseMsg) tea.Cmd {
-	if msg.Type != tea.MouseLeft {
-		return nil
-	}
-
-	// Calculate modal bounds - we need to determine where the modal is positioned
-	modalWidth := ub.width - 8
-	if modalWidth < 60 {
-		modalWidth = 60
-	}
-	if modalWidth > 120 {
-		modalWidth = 120
-	}
-	
-	// Modal is centered on screen
-	modalX := (ub.width - modalWidth) / 2
-	modalY := 2 // Approximate modal top position with margin
-	
-	// Check if click is within modal bounds
-	if msg.X < modalX || msg.X > modalX+modalWidth || msg.Y < modalY {
-		return nil
-	}
-	
-	// Convert mouse coordinates relative to modal content
-	relativeX := msg.X - modalX - 2 // Account for border and padding
-	relativeY := msg.Y - modalY - 1 // Account for border
-	
-	// Handle category tab clicks (around line 4-5 of modal content)
-	if relativeY >= 3 && relativeY <= 4 && !ub.showRecent {
-		return ub.handleCategoryTabClick(relativeX)
-	}
-	
-	// Handle recent/category toggle area click (line 3-4 for recent view)
-	if relativeY >= 3 && relativeY <= 4 && ub.showRecent {
-		// Could add click to switch back to categories
-		return nil
-	}
-	
-	// Handle character grid clicks (around lines 6-14 of modal content)
-	if relativeY >= 6 && relativeY <= 14 {
-		return ub.handleCharacterGridClick(relativeX, relativeY-6)
-	}
-	
+	// TODO: Implement proper mouse handling with dynamic layout
+	// For now, disable mouse interaction to avoid issues
+	// The keyboard navigation works perfectly
 	return nil
 }
 
@@ -468,33 +429,29 @@ func (ub *UnicodeBrowser) View() string {
 		}
 	}
 
-	// Create modal styling
+	// Minimal modal styling - no custom colors
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(modalBorder).
-		Background(modalBackground).
 		Padding(1, 2).
 		Margin(1, 2)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(modalBorder).
 		Align(lipgloss.Center)
 
-	selectedStyle := lipgloss.NewStyle().
-		Background(activeTabBg).
-		Foreground(activeTabFg).
-		Bold(true)
+	// Minimal character styles - no colors, just typography
+	charSelectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Underline(true)
 
-	normalStyle := lipgloss.NewStyle().
-		Foreground(inactiveTabFg)
+	charNormalStyle := lipgloss.NewStyle()
 
 	var title, navigation, charGrid, charInfo, instructions string
 
 	if ub.showRecent {
 		title = "Recent Characters"
 		navigation = ub.renderRecentHeader()
-		charGrid = ub.renderRecentGrid(selectedStyle, normalStyle)
+		charGrid = ub.renderRecentGrid(charSelectedStyle, charNormalStyle)
 		
 		// Character info for recent view
 		selectedChar := ub.selectedChar
@@ -505,11 +462,11 @@ func (ub *UnicodeBrowser) View() string {
 			selectedChar, int(selectedChar), ub.currentChar+1, len(ub.recentChars))
 		
 		// Instructions for recent view
-		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Toggle: r · Clear: c · Select: Enter/Space · Click: select · Double-click: apply · Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Toggle: r · Clear: c · Select: Enter/Space · Close: Esc/q"
 	} else {
 		title = "Unicode Character Browser"
 		navigation = ub.renderCategoryTabs()
-		charGrid = ub.renderCharacterGrid(selectedStyle, normalStyle)
+		charGrid = ub.renderCharacterGrid(charSelectedStyle, charNormalStyle)
 		
 		// Character info for category view
 		currentCategory := &ub.categories[ub.currentCat]
@@ -521,7 +478,7 @@ func (ub *UnicodeBrowser) View() string {
 			selectedChar, int(selectedChar), ub.currentChar+1, len(currentCategory.Characters))
 		
 		// Instructions for category view
-		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Category: < > · Recent: r · Select: Enter/Space · Click: select · Double-click: apply · Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Category: < > · Recent: r · Select: Enter/Space · Close: Esc/q"
 	}
 
 	// Build content
@@ -537,18 +494,17 @@ func (ub *UnicodeBrowser) View() string {
 		instructions,
 	)
 
-	// Calculate modal dimensions
-	maxWidth := ub.width - 8
+	// Calculate modal dimensions with better content width handling
+	maxWidth := ub.width - 12  // More margin for proper centering
 	if maxWidth < 60 {
 		maxWidth = 60
 	}
-	if maxWidth > 120 {
-		maxWidth = 120
+	if maxWidth > 100 {  // Reduced max width to prevent cutoff
+		maxWidth = 100
 	}
 
 	modal := modalStyle.
 		Width(maxWidth).
-		MaxWidth(maxWidth).
 		Render(content)
 
 	return modal
@@ -558,21 +514,20 @@ func (ub *UnicodeBrowser) View() string {
 func (ub *UnicodeBrowser) renderCategoryTabs() string {
 	var tabs []string
 
+	// Minimal tab styles - no background colors
+	tabSelectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Underline(true).
+		Padding(0, 1)
+
+	tabNormalStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
 	for i, cat := range ub.categories {
 		if i == ub.currentCat {
-			tab := lipgloss.NewStyle().
-				Background(activeTabBg).
-				Foreground(activeTabFg).
-				Bold(true).
-				Padding(0, 1).
-				Render(cat.Name)
-			tabs = append(tabs, tab)
+			tabs = append(tabs, tabSelectedStyle.Render(cat.Name))
 		} else {
-			tab := lipgloss.NewStyle().
-				Foreground(inactiveTabFg).
-				Padding(0, 1).
-				Render(cat.Name)
-			tabs = append(tabs, tab)
+			tabs = append(tabs, tabNormalStyle.Render(cat.Name))
 		}
 	}
 
@@ -698,14 +653,11 @@ func (ub *UnicodeBrowser) renderCharacterRow(characters []rune, startIdx, totalC
 func (ub *UnicodeBrowser) renderEmptyRecent() string {
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(modalBorder).
-		Background(modalBackground).
 		Padding(1, 2).
 		Margin(1, 2)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(modalBorder).
 		Align(lipgloss.Center)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
@@ -839,12 +791,12 @@ func (ub *UnicodeBrowser) renderCharacterRowRecent(characters []rune, startIdx, 
 
 // getContentWidth calculates the available width for character content
 func (ub *UnicodeBrowser) getContentWidth() int {
-	modalWidth := ub.width - 8  // Account for screen margins
+	modalWidth := ub.width - 12  // More margin for proper centering
 	if modalWidth < 60 {
 		modalWidth = 60
 	}
-	if modalWidth > 120 {
-		modalWidth = 120
+	if modalWidth > 100 {  // Reduced max width to prevent cutoff
+		modalWidth = 100
 	}
 	// Account for modal border (2) + padding (4) = 6 chars
 	return modalWidth - 6
