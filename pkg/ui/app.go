@@ -774,13 +774,13 @@ func (a *App) View() string {
 	colorSwatch := lipgloss.NewStyle().Foreground(lipgloss.Color(penColor)).Render("●●●")
 
 	status := statusStyle.Render(fmt.Sprintf(
-		"■ Tool: %s │ Pen: '%c' │ %s Colors │ Layer: %s%d/%d │ Canvas: %dx%d │ Cursor: (%d,%d) │ History: %d/%d",
+		"■ Tool: %s · Pen: 〈%c〉 · %s Colors · Layer: %s%d/%d · Canvas: %dx%d · Cursor: (%d,%d) · History: %d/%d",
 		a.currentTool, a.cursor.Pen.Char, colorSwatch, layerIcon, currentLayer+1, layerCount, canvasW, canvasH, a.cursor.X, a.cursor.Y, position, total,
 	))
 
 	// Instructions
 	instructions := statusStyle.Render(
-		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Colors: c,w,g,y,m │ Layer: 1-5,n,v │ Unicode: s │ Help: ?",
+		"Move: hjkl · Draw: space · Erase: x · Undo: u · Redo: r · Pen: *#+|- · Colors: c,w,g,y,m · Layer: 1-5,n,v · Unicode: s · Help: ?",
 	)
 
 	// Create the main view

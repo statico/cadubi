@@ -497,11 +497,11 @@ func (ub *UnicodeBrowser) View() string {
 		if ub.currentChar < len(ub.recentChars) {
 			selectedChar = ub.recentChars[ub.currentChar]
 		}
-		charInfo = fmt.Sprintf("Selected: %c (U+%04X) │ Position: %d/%d",
+		charInfo = fmt.Sprintf("Selected: %c (U+%04X) · Position: %d/%d",
 			selectedChar, int(selectedChar), ub.currentChar+1, len(ub.recentChars))
 		
 		// Instructions for recent view
-		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Toggle: r │ Clear: c │ Select: Enter/Space │ Click: select │ Double-click: apply │ Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Toggle: r · Clear: c · Select: Enter/Space · Click: select · Double-click: apply · Close: Esc/q"
 	} else {
 		title = "Unicode Character Browser"
 		navigation = ub.renderCategoryTabs()
@@ -513,11 +513,11 @@ func (ub *UnicodeBrowser) View() string {
 		if ub.currentChar < len(currentCategory.Characters) {
 			selectedChar = currentCategory.Characters[ub.currentChar]
 		}
-		charInfo = fmt.Sprintf("Selected: %c (U+%04X) │ Position: %d/%d",
+		charInfo = fmt.Sprintf("Selected: %c (U+%04X) · Position: %d/%d",
 			selectedChar, int(selectedChar), ub.currentChar+1, len(currentCategory.Characters))
 		
 		// Instructions for category view
-		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Category: < > │ Recent: r │ Select: Enter/Space │ Click: select │ Double-click: apply │ Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ · Page: PgUp/PgDn · Category: < > · Recent: r · Select: Enter/Space · Click: select · Double-click: apply · Close: Esc/q"
 	}
 
 	// Build content
@@ -648,7 +648,7 @@ func (ub *UnicodeBrowser) renderEmptyRecent() string {
 		"No recent characters yet.",
 		"Use characters from the Unicode browser to populate this list.",
 		"",
-		"Press 'r' to return to category view │ Press 'Esc' to close",
+		"Press 'r' to return to category view · Press 'Esc' to close",
 	)
 
 	return modalStyle.Width(60).Render(content)
