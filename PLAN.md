@@ -290,6 +290,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Layer management dialog with pagination for many layers
   - [ ] Status messages with bubble styling
 
+## Phase 4.6: Comprehensive Mouse Support 🎯 IN PROGRESS
+
+### Mouse Support Design Principles
+**REQUIREMENT:** All interactive UI widgets must support mouse interaction when it makes logical sense.
+
+### Core Mouse Interactions ✅ IMPLEMENTED
+- [x] **Main Canvas**: Left-click to draw, right-click to erase, wheel scroll for cursor movement
+- [x] **Unicode Browser**: Complete mouse support with tabs, character grid, and double-click selection
+- [x] **Mouse Event Routing**: Proper event delegation between modals and main app
+
+### Mouse Support Targets 📋 PLANNED
+- [ ] **Status Bar Components**:
+  - [ ] Click on color swatches to open color picker
+  - [ ] Click on tool indicator to cycle tools
+  - [ ] Click on layer info to open layer panel
+  - [ ] Click on canvas dimensions to resize dialog
+  - [ ] Click on history info for undo/redo actions
+- [ ] **Help Modal**:
+  - [ ] Click on tab headers for navigation
+  - [ ] Click outside modal to close
+  - [ ] Scroll wheel for content navigation
+- [ ] **Color Picker (Future)**:
+  - [ ] Click on color swatches for selection
+  - [ ] Click on HSL sliders for adjustment
+  - [ ] Click on palette tabs for category switching
+- [ ] **Layer Management (Future)**:
+  - [ ] Click on layer items to select
+  - [ ] Click on visibility icons to toggle
+  - [ ] Drag and drop for layer reordering
+- [ ] **File Operations (Future)**:
+  - [ ] Click on menu items
+  - [ ] Click on file browser items
+  - [ ] Click and drag for selection
+
+### Mouse UX Guidelines
+- **Single Click**: Select/navigate/focus elements
+- **Double Click**: Apply/confirm actions (like character selection)
+- **Right Click**: Context actions or alternative operations
+- **Wheel Scroll**: Navigate through lists, zoom, or move cursor
+- **Click Outside**: Close modals/dialogs
+- **Hover Effects**: Visual feedback where supported by terminal
+
 ## Phase 5: Unicode Explorer & Character Palette System ✅ IN PROGRESS
 
 ### Unicode Character Explorer ✅ COMPLETED
@@ -308,6 +350,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [x] Modal overlay interface with proper styling
   - [x] Keyboard shortcut 's' to open Unicode browser
   - [x] Enter/Space to select character and auto-close
+  - [x] **Mouse Support**: Full mouse interaction capabilities
+    - [x] Click on category tabs to switch categories
+    - [x] Click on characters to select them
+    - [x] Double-click on characters to select and auto-apply
+    - [x] Proper modal bounds detection and coordinate mapping
 
 ### Quick Palette System ✅ COMPLETED
 - [x] **Recent Characters Palette**: Automatic tracking of last 20 used characters

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -30,6 +31,8 @@ type UnicodeBrowser struct {
 	recentChars    []rune
 	maxRecentChars int
 	showRecent     bool
+	lastClickTime  time.Time
+	lastClickChar  int
 }
 
 // NewUnicodeBrowser creates a new Unicode character browser
@@ -158,6 +161,9 @@ func (ub *UnicodeBrowser) Update(msg tea.Msg) tea.Cmd {
 
 	case tea.KeyMsg:
 		return ub.handleKeyPress(msg)
+		
+	case tea.MouseMsg:
+		return ub.handleMouseEvent(msg)
 	}
 
 	return nil
@@ -248,6 +254,143 @@ func (ub *UnicodeBrowser) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		ub.Hide()
 	}
 
+	return nil
+}
+
+// handleMouseEvent processes mouse input for the Unicode browser
+func (ub *UnicodeBrowser) handleMouseEvent(msg tea.MouseMsg) tea.Cmd {
+	if msg.Type != tea.MouseLeft {
+		return nil
+	}
+
+	// Calculate modal bounds - we need to determine where the modal is positioned
+	modalWidth := ub.width - 8
+	if modalWidth < 60 {
+		modalWidth = 60
+	}
+	if modalWidth > 120 {
+		modalWidth = 120
+	}
+	
+	// Modal is centered on screen
+	modalX := (ub.width - modalWidth) / 2
+	modalY := 2 // Approximate modal top position with margin
+	
+	// Check if click is within modal bounds
+	if msg.X < modalX || msg.X > modalX+modalWidth || msg.Y < modalY {
+		return nil
+	}
+	
+	// Convert mouse coordinates relative to modal content
+	relativeX := msg.X - modalX - 2 // Account for border and padding
+	relativeY := msg.Y - modalY - 1 // Account for border
+	
+	// Handle category tab clicks (around line 4-5 of modal content)
+	if relativeY >= 3 && relativeY <= 4 && !ub.showRecent {
+		return ub.handleCategoryTabClick(relativeX)
+	}
+	
+	// Handle recent/category toggle area click (line 3-4 for recent view)
+	if relativeY >= 3 && relativeY <= 4 && ub.showRecent {
+		// Could add click to switch back to categories
+		return nil
+	}
+	
+	// Handle character grid clicks (around lines 6-14 of modal content)
+	if relativeY >= 6 && relativeY <= 14 {
+		return ub.handleCharacterGridClick(relativeX, relativeY-6)
+	}
+	
+	return nil
+}
+
+// handleCategoryTabClick processes clicks on category tabs
+func (ub *UnicodeBrowser) handleCategoryTabClick(x int) tea.Cmd {
+	if ub.showRecent {
+		return nil
+	}
+	
+	// Estimate tab positions - each category name plus spacing
+	tabPositions := []int{0} // Start positions for each tab
+	currentPos := 0
+	
+	for i, cat := range ub.categories {
+		tabWidth := len(cat.Name) + 2 // Name plus padding
+		if x >= currentPos && x < currentPos+tabWidth {
+			ub.currentCat = i
+			ub.currentChar = 0
+			break
+		}
+		currentPos += tabWidth + 1 // Add space between tabs
+		tabPositions = append(tabPositions, currentPos)
+	}
+	
+	return nil
+}
+
+// CharacterSelectedMsg is sent when a character is double-clicked for selection
+type CharacterSelectedMsg struct {
+	Character rune
+}
+
+// handleCharacterGridClick processes clicks on character grid
+func (ub *UnicodeBrowser) handleCharacterGridClick(x, y int) tea.Cmd {
+	var characters []rune
+	var maxChars int
+	
+	if ub.showRecent {
+		characters = ub.recentChars
+		maxChars = len(ub.recentChars)
+	} else {
+		if ub.currentCat >= len(ub.categories) {
+			return nil
+		}
+		characters = ub.categories[ub.currentCat].Characters
+		maxChars = len(characters)
+	}
+	
+	if maxChars == 0 {
+		return nil
+	}
+	
+	// Calculate character position from click coordinates
+	// Each character takes 3 spaces (" X "), so x position / 3 gives column
+	col := x / 3
+	row := y
+	
+	if col >= ub.charactersPerRow || row >= ub.rowsPerPage {
+		return nil
+	}
+	
+	// Calculate character index
+	currentPage := ub.currentChar / (ub.charactersPerRow * ub.rowsPerPage)
+	startIdx := currentPage * ub.charactersPerRow * ub.rowsPerPage
+	charIdx := startIdx + (row * ub.charactersPerRow) + col
+	
+	if charIdx >= maxChars {
+		return nil
+	}
+	
+	// Check for double-click (within 500ms)
+	now := time.Now()
+	isDoubleClick := charIdx == ub.lastClickChar && 
+		now.Sub(ub.lastClickTime) < 500*time.Millisecond
+	
+	// Update click tracking
+	ub.lastClickTime = now
+	ub.lastClickChar = charIdx
+	
+	// Select the clicked character
+	ub.currentChar = charIdx
+	ub.selectedChar = characters[charIdx]
+	
+	// If double-click, send selection message
+	if isDoubleClick {
+		return func() tea.Msg {
+			return CharacterSelectedMsg{Character: ub.selectedChar}
+		}
+	}
+	
 	return nil
 }
 
@@ -346,7 +489,7 @@ func (ub *UnicodeBrowser) View() string {
 			selectedChar, int(selectedChar), ub.currentChar+1, len(ub.recentChars))
 		
 		// Instructions for recent view
-		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Toggle: r │ Clear: c │ Select: Enter/Space │ Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Toggle: r │ Clear: c │ Select: Enter/Space │ Click: select │ Double-click: apply │ Close: Esc/q"
 	} else {
 		title = "Unicode Character Browser"
 		navigation = ub.renderCategoryTabs()
@@ -362,7 +505,7 @@ func (ub *UnicodeBrowser) View() string {
 			selectedChar, int(selectedChar), ub.currentChar+1, len(currentCategory.Characters))
 		
 		// Instructions for category view
-		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Category: < > │ Recent: r │ Select: Enter/Space │ Close: Esc/q"
+		instructions = "Navigation: ← → ↑ ↓ │ Page: PgUp/PgDn │ Category: < > │ Recent: r │ Select: Enter/Space │ Click: select │ Double-click: apply │ Close: Esc/q"
 	}
 
 	// Build content

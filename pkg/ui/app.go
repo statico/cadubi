@@ -392,10 +392,24 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return model, tea.Batch(cmds...)
 
 	case tea.MouseMsg:
-		// Only handle mouse events if Unicode browser is not visible
-		if !a.unicodeBrowser.IsVisible() {
+		// If Unicode browser is visible, let it handle mouse events first
+		if a.unicodeBrowser.IsVisible() {
+			cmd := a.unicodeBrowser.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			// Don't pass mouse events to main app when browser is open
+			return a, tea.Batch(cmds...)
+		} else {
 			return a.handleMouseEvent(msg)
 		}
+		
+	case CharacterSelectedMsg:
+		// Handle character selection from Unicode browser (double-click)
+		a.setPenChar(msg.Character)
+		a.unicodeBrowser.AddRecentChar(msg.Character)
+		a.unicodeBrowser.Hide()
+		return a, nil
 	}
 
 	return a, nil
