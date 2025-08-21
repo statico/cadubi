@@ -22,6 +22,7 @@ type App struct {
 	viewportX   int
 	viewportY   int
 	currentTool string
+	showHelp    bool
 }
 
 // LayerManager is a simple implementation of the layer manager interface
@@ -305,6 +306,16 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		currentLayer := a.canvas.GetCurrentLayer()
 		visible := a.canvas.IsLayerVisible(currentLayer)
 		a.canvas.SetLayerVisible(currentLayer, !visible)
+	
+	case "?":
+		// Toggle help modal
+		a.showHelp = !a.showHelp
+	
+	case "escape":
+		// Close help modal if open
+		if a.showHelp {
+			a.showHelp = false
+		}
 	}
 	
 	return a, nil
@@ -363,8 +374,58 @@ func (a *App) setPenChar(char rune) {
 	a.ctx.Cursor.Pen.Char = char
 }
 
+// getHelpContent returns the help modal content
+func (a *App) getHelpContent() string {
+	return `CADUBI v2 - Creative ASCII Drawing Utility
+
+┌─ MOVEMENT ────────────────────────────────────────┐
+│ h,j,k,l or ← ↓ ↑ →   Move cursor                  │
+│ Mouse click           Move cursor to position      │
+│ Mouse wheel           Scroll viewport              │
+└───────────────────────────────────────────────────┘
+
+┌─ DRAWING ─────────────────────────────────────────┐
+│ Space                 Draw with current pen       │
+│ x, Backspace          Erase at cursor             │
+│ Left click            Draw at mouse position      │
+│ Right click           Erase at mouse position     │
+└───────────────────────────────────────────────────┘
+
+┌─ PEN CHARACTERS ──────────────────────────────────┐
+│ *                     Set pen to '*'              │
+│ #                     Set pen to '#'              │
+│ +                     Set pen to '+'              │
+│ -                     Set pen to '-'              │
+│ |                     Set pen to '|'              │
+└───────────────────────────────────────────────────┘
+
+┌─ LAYERS ──────────────────────────────────────────┐
+│ 1-5                   Switch to layer 1-5         │
+│ n                     Add new layer               │
+│ v                     Toggle layer visibility     │
+└───────────────────────────────────────────────────┘
+
+┌─ HISTORY ─────────────────────────────────────────┐
+│ u                     Undo last action            │
+│ r                     Redo last undone action     │
+└───────────────────────────────────────────────────┘
+
+┌─ GENERAL ─────────────────────────────────────────┐
+│ ?                     Show/hide this help         │
+│ Escape                Close help modal            │
+│ q, Ctrl+C             Quit application            │
+└───────────────────────────────────────────────────┘
+
+Press Escape or ? to close this help.`
+}
+
 // View renders the current application state
 func (a *App) View() string {
+	// If help modal is shown, render it instead
+	if a.showHelp {
+		return a.renderHelpModal()
+	}
+	
 	// Create styles
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -405,7 +466,7 @@ func (a *App) View() string {
 	}
 	
 	status := statusStyle.Render(fmt.Sprintf(
-		"Tool: %s │ Pen: '%c' │ Cursor: (%d,%d) │ Layer: %s%d/%d │ History: %d/%d │ Press 'q' to quit",
+		"Tool: %s │ Pen: '%c' │ Cursor: (%d,%d) │ Layer: %s%d/%d │ History: %d/%d │ Press '?' for help",
 		a.currentTool, a.cursor.Pen.Char, a.cursor.X, a.cursor.Y, visibilityIcon, currentLayer+1, layerCount, position, total,
 	))
 	
@@ -415,6 +476,59 @@ func (a *App) View() string {
 	)
 	
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, status, instructions)
+}
+
+// renderHelpModal renders the help modal dialog
+func (a *App) renderHelpModal() string {
+	// Create modal styles
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7C3AED")).
+		Padding(1, 2).
+		Background(lipgloss.Color("#1E1E2E")).
+		Foreground(lipgloss.Color("#CDD6F4"))
+	
+	overlayStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#CDD6F4"))
+	
+	// Get help content
+	helpContent := a.getHelpContent()
+	
+	// Create the modal
+	modal := modalStyle.Render(helpContent)
+	
+	// Create overlay background
+	overlay := strings.Repeat(" ", a.width) + "\n"
+	overlay = strings.Repeat(overlay, a.height)
+	overlay = overlayStyle.
+		Width(a.width).
+		Height(a.height).
+		Render(overlay)
+	
+	// Center the modal on screen
+	modalWidth := lipgloss.Width(modal)
+	modalHeight := lipgloss.Height(modal)
+	
+	// Calculate centering position
+	leftPadding := (a.width - modalWidth) / 2
+	topPadding := (a.height - modalHeight) / 2
+	
+	if leftPadding < 0 {
+		leftPadding = 0
+	}
+	if topPadding < 0 {
+		topPadding = 0
+	}
+	
+	// Position the modal
+	centeredModal := lipgloss.Place(
+		a.width, a.height,
+		lipgloss.Center, lipgloss.Center,
+		modal,
+	)
+	
+	return centeredModal
 }
 
 // renderCanvasWithCursor renders the canvas content with cursor overlay
