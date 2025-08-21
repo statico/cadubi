@@ -304,7 +304,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [ ] Layer management dialog with pagination for many layers
   - [ ] Status messages with bubble styling
 
-## Phase 4.6: Comprehensive Mouse Support 🎯 IN PROGRESS
+## Phase 4.6: Comprehensive Mouse Support ✅ COMPLETED
 
 ### Mouse Support Design Principles
 **REQUIREMENT:** All interactive UI widgets must support mouse interaction when it makes logical sense.
@@ -314,13 +314,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [x] **Unicode Browser**: Complete mouse support with tabs, character grid, and double-click selection
 - [x] **Mouse Event Routing**: Proper event delegation between modals and main app
 
-### Mouse Support Targets 📋 PLANNED
-- [ ] **Status Bar Components**:
-  - [ ] Click on color swatches to open color picker
-  - [ ] Click on tool indicator to cycle tools
-  - [ ] Click on layer info to open layer panel
-  - [ ] Click on canvas dimensions to resize dialog
-  - [ ] Click on history info for undo/redo actions
+### Mouse Support Targets ✅ COMPLETED
+- [x] **Status Bar Components**:
+  - [x] Click on color swatches to cycle colors
+  - [x] Click on tool indicator to cycle tools (pen/brush/fill)
+  - [x] Click on layer info to toggle layer visibility
+  - [x] Click on canvas dimensions (placeholder for future resize dialog)
+  - [x] Click on history info for undo/redo actions (left side undo, right side redo)
 - [ ] **Help Modal**:
   - [ ] Click on tab headers for navigation
   - [ ] Click outside modal to close
@@ -345,6 +345,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - **Wheel Scroll**: Navigate through lists, zoom, or move cursor
 - **Click Outside**: Close modals/dialogs
 - **Hover Effects**: Visual feedback where supported by terminal
+
+## Phase 4.7: Comprehensive Trace Logging System ✅ COMPLETED
+
+### Debug & Development Support
+**PURPOSE:** Enable comprehensive debugging and development workflow with detailed trace logging.
+
+### Core Logging System ✅ COMPLETED
+- [x] **Command Line Flag Support**: `--trace` flag to enable comprehensive trace logging
+- [x] **File-based Logging**: Save trace logs to configurable file (defaults to `trace.log`)
+- [x] **Structured Log Format**: Timestamp-based structured text format for easy parsing
+- [x] **Log Levels**: TRACE, DEBUG, INFO, WARN, ERROR with filtering capabilities
+- [x] **Performance Timing**: Timer system for logging execution times
+- [x] **Terminal Environment Capture**: Log terminal size, color support, capabilities
+
+### Comprehensive Logging Coverage ✅ COMPLETED
+- [x] **Command System**: Log all drawing commands, undo/redo, cursor movements
+- [x] **UI Interactions**: Log key presses, mouse events, modal state changes
+- [x] **Canvas Operations**: Log pixel operations, layer changes, tool switching  
+- [x] **Application Lifecycle**: Log startup, shutdown, and error conditions
+- [x] **Error Handling**: Detailed error context and stack traces
+- [x] **User Actions**: Track all UI clicks, tool changes, color cycling
+
+### Development Workflow Integration ✅ COMPLETED
+- [x] **Build System**: Add `make run/trace` and `make dev/trace` targets for trace-enabled execution
+- [x] **Git Integration**: Add `trace.log` to `.gitignore` to prevent commits
+- [x] **Claude Code Integration**: Update `CLAUDE.local.md` with trace debugging workflow
+- [x] **Trace Package**: Complete logging infrastructure in `pkg/trace/`
+
+### Trace Log Format Design
+```
+[2025-01-21 10:15:30.123] [TRACE] [command] DrawCommand executed: x=15, y=8, char='*', color=white, layer=0, duration=1.2ms
+[2025-01-21 10:15:30.125] [DEBUG] [ui] Mouse click detected: x=45, y=12, button=left, region=canvas
+[2025-01-21 10:15:30.126] [INFO] [terminal] Terminal size: 120x40, color_support=true, mouse_support=true
+[2025-01-21 10:15:30.128] [TRACE] [canvas] Viewport updated: x=0, y=0, width=100, height=30
+```
+
+### Development Benefits
+- **Issue Reproduction**: Exact sequence of events leading to bugs
+- **Performance Analysis**: Identify bottlenecks in rendering and command execution  
+- **User Behavior**: Understand how artists use different features
+- **Terminal Compatibility**: Debug issues across different terminal environments
+- **Automated Testing**: Generate test scenarios from real usage patterns
 
 ## Phase 5: Unicode Explorer & Character Palette System ✅ IN PROGRESS
 

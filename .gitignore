@@ -53,3 +53,7 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Trace logging
+trace.log
+trace-*.log

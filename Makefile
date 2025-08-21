@@ -37,6 +37,16 @@ dev:
 	@echo "Running CADUBI v2 in development mode..."
 	go run cmd/cadubi/main.go
 
+# Run the application with trace logging enabled
+run/trace: build
+	@echo "Running CADUBI v2 with trace logging..."
+	./bin/cadubi --trace
+
+# Run the application in development mode with trace logging
+dev/trace:
+	@echo "Running CADUBI v2 in development mode with trace logging..."
+	go run cmd/cadubi/main.go --trace
+
 # Format code
 fmt:
 	@echo "Formatting code..."
@@ -83,7 +93,9 @@ help:
 	@echo "  test-headless Run headless tests"
 	@echo "  clean         Clean build artifacts"
 	@echo "  run           Build and run the application"
+	@echo "  run/trace     Build and run the application with trace logging"
 	@echo "  dev           Run application in development mode"
+	@echo "  dev/trace     Run application in development mode with trace logging"
 	@echo "  fmt           Format code"
 	@echo "  lint          Lint code"
 	@echo "  deps          Install dependencies"

@@ -6,6 +6,7 @@ import (
 
 	"github.com/cadubi/cadubi/pkg/canvas"
 	"github.com/cadubi/cadubi/pkg/commands"
+	"github.com/cadubi/cadubi/pkg/trace"
 	"github.com/cadubi/cadubi/pkg/unicode"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -221,6 +222,13 @@ func DefaultKeyMap() KeyMap {
 	}
 }
 
+// ClickableRegion represents a clickable area in the UI
+type ClickableRegion struct {
+	X, Y, Width, Height int
+	Action              string
+	Data                interface{}
+}
+
 // App represents the main application state
 type App struct {
 	canvas         *canvas.Canvas
@@ -237,6 +245,7 @@ type App struct {
 	unicodeBrowser *UnicodeBrowser
 	keyMap         KeyMap
 	help           help.Model
+	clickableRegions []ClickableRegion
 }
 
 // LayerManager is a simple implementation of the layer manager interface
@@ -308,6 +317,8 @@ func (lm *LayerManager) IsLayerVisible(layer int) bool {
 
 // NewApp creates a new application
 func NewApp() *App {
+	trace.Infof("app", "Creating new CADUBI application")
+	
 	c := canvas.NewCanvas(80, 24)
 	layers := NewLayerManager()
 
@@ -328,7 +339,7 @@ func NewApp() *App {
 		Cursor: cursor,
 	}
 
-	return &App{
+	app := &App{
 		canvas:         c,
 		history:        commands.NewCommandHistory(1000),
 		ctx:            ctx,
@@ -339,6 +350,9 @@ func NewApp() *App {
 		keyMap:         DefaultKeyMap(),
 		help:           help.New(),
 	}
+	
+	trace.Infof("app", "Application created successfully with canvas size 80x24, initial tool: pen")
+	return app
 }
 
 // Init initializes the application
@@ -352,6 +366,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		trace.LogTerminalInfo(msg.Width, msg.Height)
 		a.width = msg.Width
 		a.height = msg.Height
 		// Forward to Unicode browser
@@ -361,6 +376,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		trace.LogUIEvent("key_press", map[string]interface{}{
+			"key": msg.String(),
+			"unicode_browser_visible": a.unicodeBrowser.IsVisible(),
+			"help_visible": a.showHelp,
+		})
+		
 		// If Unicode browser is visible, handle its keys first
 		if a.unicodeBrowser.IsVisible() {
 			cmd := a.unicodeBrowser.Update(msg)
@@ -389,6 +410,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return model, tea.Batch(cmds...)
 
 	case tea.MouseMsg:
+		trace.LogUIEvent("mouse_event", map[string]interface{}{
+			"type": int(msg.Type),
+			"x": msg.X,
+			"y": msg.Y,
+			"button": int(msg.Button),
+			"unicode_browser_visible": a.unicodeBrowser.IsVisible(),
+		})
+		
 		// If Unicode browser is visible, let it handle mouse events first
 		if a.unicodeBrowser.IsVisible() {
 			cmd := a.unicodeBrowser.Update(msg)
@@ -416,6 +445,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *App) handleMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.MouseLeft:
+		// First check if click is on any clickable UI regions
+		if region := a.getClickedRegion(msg.X, msg.Y); region != nil {
+			return a.handleUIClick(*region)
+		}
+		
 		// Calculate canvas coordinates from mouse position
 		canvasX, canvasY := a.screenToCanvas(msg.X, msg.Y)
 
@@ -450,6 +484,85 @@ func (a *App) handleMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		a.history.Execute(a.ctx, cmd)
 	}
 
+	return a, nil
+}
+
+// getClickedRegion returns the first clickable region that contains the given coordinates
+func (a *App) getClickedRegion(x, y int) *ClickableRegion {
+	for _, region := range a.clickableRegions {
+		if x >= region.X && x < region.X+region.Width &&
+		   y >= region.Y && y < region.Y+region.Height {
+			return &region
+		}
+	}
+	return nil
+}
+
+// addClickableRegion adds a clickable region to the tracking list
+func (a *App) addClickableRegion(x, y, width, height int, action string, data interface{}) {
+	a.clickableRegions = append(a.clickableRegions, ClickableRegion{
+		X:      x,
+		Y:      y,
+		Width:  width,
+		Height: height,
+		Action: action,
+		Data:   data,
+	})
+}
+
+// cycleTool cycles through available tools
+func (a *App) cycleTool() {
+	tools := []string{"pen", "brush", "fill"} // Available tools
+	currentIndex := 0
+	
+	// Find current tool index
+	for i, tool := range tools {
+		if tool == a.currentTool {
+			currentIndex = i
+			break
+		}
+	}
+	
+	// Move to next tool
+	nextIndex := (currentIndex + 1) % len(tools)
+	oldTool := a.currentTool
+	a.currentTool = tools[nextIndex]
+	a.cursor.Tool = a.currentTool
+	a.ctx.Cursor.Tool = a.currentTool
+	
+	trace.Debugf("ui", "Tool cycled from '%s' to '%s'", oldTool, a.currentTool)
+}
+
+// handleUIClick processes clicks on UI elements
+func (a *App) handleUIClick(region ClickableRegion) (tea.Model, tea.Cmd) {
+	trace.LogUIEvent("ui_click", map[string]interface{}{
+		"action": region.Action,
+		"x": region.X,
+		"y": region.Y,
+		"width": region.Width,
+		"height": region.Height,
+	})
+	
+	switch region.Action {
+	case "cycle_colors":
+		a.cyclePenColor()
+	case "cycle_tool":
+		a.cycleTool()
+	case "toggle_layer_visibility":
+		currentLayer := a.canvas.GetCurrentLayer()
+		visible := a.canvas.IsLayerVisible(currentLayer)
+		a.canvas.SetLayerVisible(currentLayer, !visible)
+		trace.Debugf("ui", "Layer %d visibility toggled to %v", currentLayer, !visible)
+	case "canvas_info":
+		// For now, canvas click doesn't do anything (placeholder for future resize dialog)
+		// TODO: Implement canvas resize/info dialog
+		trace.Debugf("ui", "Canvas info clicked (not implemented)")
+	case "undo":
+		a.undo()
+	case "redo":
+		a.redo()
+	// TODO: Add more actions as needed (color picker dialog, resize dialog, etc.)
+	}
 	return a, nil
 }
 
@@ -693,28 +806,43 @@ func (a *App) moveCursor(dx, dy int) {
 
 // drawAtCursor draws at the current cursor position
 func (a *App) drawAtCursor() {
+	trace.LogCommand("DrawCommand", map[string]interface{}{
+		"x": a.cursor.X,
+		"y": a.cursor.Y,
+		"char": string(a.cursor.Pen.Char),
+		"color": a.cursor.Pen.Foreground,
+		"layer": a.canvas.GetCurrentLayer(),
+	})
 	cmd := commands.NewDrawCommand(a.cursor.X, a.cursor.Y, a.cursor.Pen, 0)
 	a.history.Execute(a.ctx, cmd)
 }
 
 // eraseAtCursor erases at the current cursor position
 func (a *App) eraseAtCursor() {
+	trace.LogCommand("EraseCommand", map[string]interface{}{
+		"x": a.cursor.X,
+		"y": a.cursor.Y,
+		"layer": a.canvas.GetCurrentLayer(),
+	})
 	cmd := commands.NewEraseCommand(a.cursor.X, a.cursor.Y, 0)
 	a.history.Execute(a.ctx, cmd)
 }
 
 // undo undoes the last command
 func (a *App) undo() {
+	trace.LogCommand("UndoCommand", map[string]interface{}{})
 	a.history.Undo(a.ctx)
 }
 
 // redo redoes the next command
 func (a *App) redo() {
+	trace.LogCommand("RedoCommand", map[string]interface{}{})
 	a.history.Redo(a.ctx)
 }
 
 // setPenChar changes the pen character
 func (a *App) setPenChar(char rune) {
+	trace.Debugf("ui", "Changing pen character from '%c' to '%c'", a.cursor.Pen.Char, char)
 	a.cursor.Pen.Char = char
 	a.ctx.Cursor.Pen.Char = char
 	// Add to recent characters if it's not a basic ASCII character
@@ -725,6 +853,7 @@ func (a *App) setPenChar(char rune) {
 
 // setPenColor changes the pen color
 func (a *App) setPenColor(color string) {
+	trace.Debugf("ui", "Changing pen color from '%s' to '%s'", a.cursor.Pen.Foreground, color)
 	a.cursor.Pen.Foreground = color
 	a.ctx.Cursor.Pen.Foreground = color
 }
@@ -784,7 +913,10 @@ func (a *App) View() string {
 		Height(canvasHeight).
 		Render(canvasContent)
 
-	// Create status bar
+	// Clear previous clickable regions  
+	a.clickableRegions = []ClickableRegion{}
+
+	// Create status bar with clickable regions
 	total, position := a.history.GetStats()
 	currentLayer := a.canvas.GetCurrentLayer()
 	layerCount := a.canvas.GetLayerCount()
@@ -806,9 +938,54 @@ func (a *App) View() string {
 	}
 	colorSwatch := lipgloss.NewStyle().Foreground(lipgloss.Color(penColor)).Render("●●●")
 
+	// Build status bar with clickable tracking
+	statusY := canvasHeight + 2 // Position after canvas and border
+	currentX := 1 // Start with left margin
+	
+	// Build status parts with position tracking
+	toolPart := fmt.Sprintf("■ Tool: %s", a.currentTool)
+	penPart := fmt.Sprintf("Pen: 〈%c〉", a.cursor.Pen.Char)
+	colorPart := fmt.Sprintf("%s Colors", colorSwatch)
+	layerPart := fmt.Sprintf("Layer: %s%d/%d", layerIcon, currentLayer+1, layerCount)
+	canvasPart := fmt.Sprintf("Canvas: %dx%d", canvasW, canvasH)
+	cursorPart := fmt.Sprintf("Cursor: (%d,%d)", a.cursor.X, a.cursor.Y)
+	historyPart := fmt.Sprintf("History: %d/%d", position, total)
+	
+	// Add clickable regions for each part
+	// Tool (not clickable for now, but could cycle tools)
+	a.addClickableRegion(currentX, statusY, len(toolPart), 1, "cycle_tool", nil)
+	currentX += len(toolPart) + 3 // Add separator length " · "
+	
+	// Skip pen part (not clickable)
+	currentX += len(penPart) + 3
+	
+	// Color swatch (clickable to cycle colors)  
+	a.addClickableRegion(currentX, statusY, len(colorPart), 1, "cycle_colors", nil)
+	currentX += len(colorPart) + 3
+	
+	// Layer info (clickable to toggle visibility)
+	a.addClickableRegion(currentX, statusY, len(layerPart), 1, "toggle_layer_visibility", nil)
+	currentX += len(layerPart) + 3
+	
+	// Canvas dimensions (clickable to show info or reset)
+	a.addClickableRegion(currentX, statusY, len(canvasPart), 1, "canvas_info", nil)
+	currentX += len(canvasPart) + 3
+	
+	// Skip cursor part (not clickable)
+	currentX += len(cursorPart) + 3
+	
+	// History (clickable for undo/redo - left side undo, right side redo)
+	historyWidth := len(historyPart)
+	halfWidth := historyWidth / 2
+	
+	// Left half for undo
+	a.addClickableRegion(currentX, statusY, halfWidth, 1, "undo", nil)
+	// Right half for redo
+	a.addClickableRegion(currentX + halfWidth, statusY, historyWidth - halfWidth, 1, "redo", nil)
+
 	status := statusStyle.Render(fmt.Sprintf(
-		"■ Tool: %s · Pen: 〈%c〉 · %s Colors · Layer: %s%d/%d · Canvas: %dx%d · Cursor: (%d,%d) · History: %d/%d",
-		a.currentTool, a.cursor.Pen.Char, colorSwatch, layerIcon, currentLayer+1, layerCount, canvasW, canvasH, a.cursor.X, a.cursor.Y, position, total,
+		"%s · %s · %s · %s · %s · %s · %s",
+		toolPart, penPart, colorPart, layerPart, canvasPart, cursorPart, historyPart,
 	))
 
 	// Instructions
