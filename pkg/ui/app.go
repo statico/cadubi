@@ -137,9 +137,112 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 	case tea.KeyMsg:
 		return a.handleKeyPress(msg)
+		
+	case tea.MouseMsg:
+		return a.handleMouseEvent(msg)
 	}
 	
 	return a, nil
+}
+
+// handleMouseEvent processes mouse input
+func (a *App) handleMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.MouseLeft:
+		// Calculate canvas coordinates from mouse position
+		canvasX, canvasY := a.screenToCanvas(msg.X, msg.Y)
+		
+		// Move cursor and draw
+		a.moveCursorTo(canvasX, canvasY)
+		a.drawAtCursor()
+		
+	case tea.MouseRight:
+		// Calculate canvas coordinates from mouse position
+		canvasX, canvasY := a.screenToCanvas(msg.X, msg.Y)
+		
+		// Move cursor and erase
+		a.moveCursorTo(canvasX, canvasY)
+		a.eraseAtCursor()
+		
+	case tea.MouseWheelUp:
+		// Scroll up (move viewport up)
+		a.cursor.Y -= 3
+		if a.cursor.Y < 0 {
+			a.cursor.Y = 0
+		}
+		cmd := commands.NewMoveCursorCommand(a.cursor.X, a.cursor.Y)
+		a.history.Execute(a.ctx, cmd)
+		
+	case tea.MouseWheelDown:
+		// Scroll down (move viewport down)
+		a.cursor.Y += 3
+		if a.cursor.Y > 1000 { // Reasonable limit
+			a.cursor.Y = 1000
+		}
+		cmd := commands.NewMoveCursorCommand(a.cursor.X, a.cursor.Y)
+		a.history.Execute(a.ctx, cmd)
+	}
+	
+	return a, nil
+}
+
+// screenToCanvas converts screen coordinates to canvas coordinates
+func (a *App) screenToCanvas(screenX, screenY int) (canvasX, canvasY int) {
+	// Calculate canvas area bounds (account for border)
+	canvasWidth := a.width - 4  // Account for border padding
+	canvasHeight := a.height - 6 // Account for border, status bar, and margins
+	
+	if canvasWidth < 10 {
+		canvasWidth = 10
+	}
+	if canvasHeight < 5 {
+		canvasHeight = 5
+	}
+	
+	// Get current viewport position
+	viewportX, viewportY := a.canvas.GetViewportPos()
+	startX := viewportX - canvasWidth/2
+	startY := viewportY - canvasHeight/2
+	
+	// Convert screen coordinates to canvas coordinates
+	// Account for border (1 char) and padding (1 char) = 2 chars offset
+	canvasRelativeX := screenX - 2
+	canvasRelativeY := screenY - 1 // Top border
+	
+	// Ensure we're within canvas bounds
+	if canvasRelativeX >= 0 && canvasRelativeX < canvasWidth &&
+		canvasRelativeY >= 0 && canvasRelativeY < canvasHeight {
+		canvasX = startX + canvasRelativeX
+		canvasY = startY + canvasRelativeY
+	} else {
+		// Default to current cursor position if click is outside canvas
+		canvasX = a.cursor.X
+		canvasY = a.cursor.Y
+	}
+	
+	return canvasX, canvasY
+}
+
+// moveCursorTo moves cursor to specific coordinates
+func (a *App) moveCursorTo(x, y int) {
+	// Keep coordinates within reasonable bounds
+	if x < -1000 {
+		x = -1000
+	}
+	if x > 1000 {
+		x = 1000
+	}
+	if y < -1000 {
+		y = -1000
+	}
+	if y > 1000 {
+		y = 1000
+	}
+	
+	cmd := commands.NewMoveCursorCommand(x, y)
+	a.history.Execute(a.ctx, cmd)
+	a.cursor.X = x
+	a.cursor.Y = y
 }
 
 // handleKeyPress processes keyboard input
@@ -183,6 +286,26 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.setPenChar('-')
 	case "|":
 		a.setPenChar('|')
+		
+	// Layer controls
+	case "1", "2", "3", "4", "5":
+		// Switch to layer by number
+		layerNum := int(msg.String()[0] - '1') // Convert '1'-'5' to 0-4
+		if layerNum < a.canvas.GetLayerCount() {
+			a.canvas.SetCurrentLayer(layerNum)
+		}
+	
+	case "n":
+		// Add new layer
+		layerCount := a.canvas.GetLayerCount()
+		layerName := fmt.Sprintf("Layer %d", layerCount+1)
+		a.canvas.AddLayer(layerName)
+	
+	case "v":
+		// Toggle current layer visibility
+		currentLayer := a.canvas.GetCurrentLayer()
+		visible := a.canvas.IsLayerVisible(currentLayer)
+		a.canvas.SetLayerVisible(currentLayer, !visible)
 	}
 	
 	return a, nil
@@ -274,16 +397,22 @@ func (a *App) View() string {
 	
 	// Create status bar
 	total, position := a.history.GetStats()
-	pixelCount := a.canvas.GetPixelCount()
+	currentLayer := a.canvas.GetCurrentLayer()
+	layerCount := a.canvas.GetLayerCount()
+	layerVisible := a.canvas.IsLayerVisible(currentLayer)
+	visibilityIcon := "●"
+	if !layerVisible {
+		visibilityIcon = "○"
+	}
 	
 	status := statusStyle.Render(fmt.Sprintf(
-		"Tool: %s │ Pen: '%c' │ Cursor: (%d,%d) │ History: %d/%d │ Pixels: %d │ Press 'q' to quit",
-		a.currentTool, a.cursor.Pen.Char, a.cursor.X, a.cursor.Y, position, total, pixelCount,
+		"Tool: %s │ Pen: '%c' │ Cursor: (%d,%d) │ Layer: %s%d/%d │ History: %d/%d │ Press 'q' to quit",
+		a.currentTool, a.cursor.Pen.Char, a.cursor.X, a.cursor.Y, visibilityIcon, currentLayer+1, layerCount, position, total,
 	))
 	
 	// Instructions
 	instructions := statusStyle.Render(
-		"Movement: hjkl/arrows │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|-",
+		"Move: hjkl │ Draw: space │ Erase: x │ Undo: u │ Redo: r │ Pen: *#+|- │ Layer: 1-5,n,v",
 	)
 	
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, status, instructions)
@@ -291,19 +420,16 @@ func (a *App) View() string {
 
 // renderCanvasWithCursor renders the canvas content with cursor overlay
 func (a *App) renderCanvasWithCursor(width, height int) string {
-	// Calculate viewport to center cursor
-	startX := a.cursor.X - width/2
-	startY := a.cursor.Y - height/2
+	// Center viewport on cursor for infinite canvas experience
+	a.canvas.CenterViewportOn(a.cursor.X, a.cursor.Y, width, height)
 	
-	if startX < 0 {
-		startX = 0
-	}
-	if startY < 0 {
-		startY = 0
-	}
+	// Get canvas content centered on cursor
+	content := a.canvas.GetViewportCentered(width, height)
 	
-	// Get canvas content
-	content := a.canvas.GetViewport(startX, startY, width, height)
+	// Calculate viewport position for cursor rendering
+	viewportX, viewportY := a.canvas.GetViewportPos()
+	startX := viewportX - width/2
+	startY := viewportY - height/2
 	
 	// Overlay cursor
 	lines := strings.Split(content, "\n")

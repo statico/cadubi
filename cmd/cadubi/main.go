@@ -12,8 +12,12 @@ func main() {
 	// Create the application
 	app := ui.NewApp()
 
-	// Create Bubble Tea program
-	p := tea.NewProgram(app, tea.WithAltScreen())
+	// Create Bubble Tea program with mouse support
+	p := tea.NewProgram(
+		app, 
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(), // Enable mouse support with motion
+	)
 
 	// Run the program
 	if _, err := p.Run(); err != nil {

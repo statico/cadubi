@@ -67,8 +67,8 @@ func TestAppView(t *testing.T) {
 		"Tool:",
 		"Pen:",
 		"Cursor:",
-		"History:",
-		"Movement:",
+		"Layer:",
+		"Move:",
 	}
 	
 	for _, expected := range expectedStrings {

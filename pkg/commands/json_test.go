@@ -80,6 +80,48 @@ func CreateCommandFromJSON(jsonCmd JSONCommand) (Command, error) {
 		y := int(jsonCmd.Params["y"].(float64))
 		return NewMoveCursorCommand(x, y), nil
 		
+	case "line":
+		x1 := int(jsonCmd.Params["x1"].(float64))
+		y1 := int(jsonCmd.Params["y1"].(float64))
+		x2 := int(jsonCmd.Params["x2"].(float64))
+		y2 := int(jsonCmd.Params["y2"].(float64))
+		char := rune(jsonCmd.Params["char"].(string)[0])
+		
+		pixel := Pixel{Char: char}
+		if fg, exists := jsonCmd.Params["foreground"]; exists {
+			pixel.Foreground = fg.(string)
+		}
+		
+		layer := 0
+		if l, exists := jsonCmd.Params["layer"]; exists {
+			layer = int(l.(float64))
+		}
+		
+		return NewLineCommand(x1, y1, x2, y2, pixel, layer), nil
+		
+	case "rectangle":
+		x1 := int(jsonCmd.Params["x1"].(float64))
+		y1 := int(jsonCmd.Params["y1"].(float64))
+		x2 := int(jsonCmd.Params["x2"].(float64))
+		y2 := int(jsonCmd.Params["y2"].(float64))
+		char := rune(jsonCmd.Params["char"].(string)[0])
+		filled := false
+		if f, exists := jsonCmd.Params["filled"]; exists {
+			filled = f.(bool)
+		}
+		
+		pixel := Pixel{Char: char}
+		if fg, exists := jsonCmd.Params["foreground"]; exists {
+			pixel.Foreground = fg.(string)
+		}
+		
+		layer := 0
+		if l, exists := jsonCmd.Params["layer"]; exists {
+			layer = int(l.(float64))
+		}
+		
+		return NewRectangleCommand(x1, y1, x2, y2, pixel, layer, filled), nil
+		
 	default:
 		return nil, fmt.Errorf("unknown command type: %s", jsonCmd.Type)
 	}
@@ -303,4 +345,112 @@ func TestJSONCommandUndo(t *testing.T) {
 	}
 	
 	t.Log("JSON-driven undo test passed")
+}
+
+func TestJSONDrawingTools(t *testing.T) {
+	// Test line and rectangle drawing tools
+	scenarioJSON := `{
+		"name": "Drawing tools test",
+		"commands": [
+			{
+				"type": "line",
+				"params": {
+					"x1": 0,
+					"y1": 0,
+					"x2": 5,
+					"y2": 5,
+					"char": "-",
+					"foreground": "blue"
+				}
+			},
+			{
+				"type": "rectangle",
+				"params": {
+					"x1": 10,
+					"y1": 10,
+					"x2": 15,
+					"y2": 12,
+					"char": "#",
+					"filled": false
+				}
+			},
+			{
+				"type": "rectangle",
+				"params": {
+					"x1": 20,
+					"y1": 5,
+					"x2": 22,
+					"y2": 7,
+					"char": "*",
+					"filled": true
+				}
+			}
+		],
+		"assertions": [
+			{
+				"type": "pixel",
+				"expected": {
+					"x": 0,
+					"y": 0,
+					"char": "-"
+				}
+			},
+			{
+				"type": "pixel",
+				"expected": {
+					"x": 5,
+					"y": 5,
+					"char": "-"
+				}
+			},
+			{
+				"type": "pixel",
+				"expected": {
+					"x": 10,
+					"y": 10,
+					"char": "#"
+				}
+			},
+			{
+				"type": "pixel",
+				"expected": {
+					"x": 15,
+					"y": 12,
+					"char": "#"
+				}
+			},
+			{
+				"type": "pixel",
+				"expected": {
+					"x": 21,
+					"y": 6,
+					"char": "*"
+				}
+			}
+		]
+	}`
+	
+	var scenario JSONTestScenario
+	if err := json.Unmarshal([]byte(scenarioJSON), &scenario); err != nil {
+		t.Fatalf("Failed to parse test scenario: %v", err)
+	}
+	
+	// Set up test context
+	canvas := NewMockCanvas(80, 24)
+	ctx := &CommandContext{
+		Canvas: canvas,
+		Layers: NewMockLayerManager(),
+		Cursor: CursorState{X: 0, Y: 0},
+	}
+	history := NewCommandHistory(100)
+	
+	// Execute commands
+	if err := ExecuteJSONCommands(ctx, history, scenario.Commands); err != nil {
+		t.Fatalf("Failed to execute JSON commands: %v", err)
+	}
+	
+	// Validate assertions
+	ValidateAssertions(t, ctx, history, scenario.Assertions)
+	
+	t.Logf("Successfully executed drawing tools test: %s", scenario.Name)
 }
