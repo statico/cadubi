@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/cadubi/cadubi/pkg/canvas"
@@ -537,7 +538,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, tea.Quit
 			} else {
 				// Show file dialog to get filename for save
-				a.fileInputDialog.Show("save")
+				initialValue := a.getSaveDialogInitialValue()
+				a.fileInputDialog.ShowWithValue("save", initialValue)
 				// Don't quit yet - wait for file selection
 				a.quitting = true
 			}
@@ -574,6 +576,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, nil
+}
+
+// getSaveDialogInitialValue returns the appropriate initial value for the save dialog
+func (a *App) getSaveDialogInitialValue() string {
+	currentFilename := a.canvas.GetFilename()
+	
+	if currentFilename != "" {
+		// If we have a current filename, use just the base name for easy editing
+		return filepath.Base(currentFilename)
+	} else {
+		// For new documents, pre-populate with .cadubi extension
+		return "untitled.cadubi"
+	}
 }
 
 // handleMouseEvent processes mouse input
@@ -918,7 +933,8 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			// Show save dialog
 			if !a.showHelp && !a.unicodeBrowser.IsVisible() && !a.colorPicker.IsVisible() {
-				a.fileInputDialog.Show("save")
+				initialValue := a.getSaveDialogInitialValue()
+				a.fileInputDialog.ShowWithValue("save", initialValue)
 			}
 		}
 

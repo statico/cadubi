@@ -42,9 +42,20 @@ func NewFileInputDialog() *FileInputDialog {
 }
 
 func (d *FileInputDialog) Show(mode string) {
+	d.ShowWithValue(mode, "")
+}
+
+func (d *FileInputDialog) ShowWithValue(mode, initialValue string) {
 	d.mode = mode
 	d.visible = true
 	d.textInput.Reset()
+	
+	if initialValue != "" {
+		d.textInput.SetValue(initialValue)
+		// Position cursor at the beginning for easy editing
+		d.textInput.CursorStart()
+	}
+	
 	if mode == "load" {
 		d.textInput.Placeholder = "Load file..."
 	} else {
