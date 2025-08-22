@@ -1246,12 +1246,57 @@ func (a *App) View() string {
 		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, browserView, lipgloss.WithWhitespaceChars(""))
 	}
 
-	// If toast is visible, add it to the top of the main view
+	// If toast is visible, overlay it in the upper right corner
 	if a.toast.IsVisible() {
 		toastView := a.toast.View()
-		// Position toast at the top-right
-		toastLine := lipgloss.NewStyle().Width(a.width).Align(lipgloss.Right).Render(toastView)
-		return toastLine + "\n" + mainView
+		// Create background that fills the terminal and place toast on top right
+		background := lipgloss.Place(a.width, a.height, lipgloss.Left, lipgloss.Top, mainView)
+		
+		// Split background into lines and overlay toast in upper right
+		backgroundLines := strings.Split(background, "\n")
+		toastLines := strings.Split(toastView, "\n")
+		
+		// Calculate toast position (upper right with small margin)
+		margin := 1
+		toastWidth := 0
+		for _, line := range toastLines {
+			if len([]rune(line)) > toastWidth {
+				toastWidth = len([]rune(line))
+			}
+		}
+		
+		toastX := a.width - toastWidth - margin
+		if toastX < 0 {
+			toastX = 0
+		}
+		
+		// Overlay toast onto background
+		for i, toastLine := range toastLines {
+			if i+margin < len(backgroundLines) {
+				backgroundLine := backgroundLines[i+margin]
+				backgroundRunes := []rune(backgroundLine)
+				toastRunes := []rune(toastLine)
+				
+				// Extend background line if needed
+				for len(backgroundRunes) < a.width {
+					backgroundRunes = append(backgroundRunes, ' ')
+				}
+				
+				// Overlay toast content
+				for j, toastRune := range toastRunes {
+					pos := toastX + j
+					if pos < len(backgroundRunes) {
+						if toastRune != ' ' || j == 0 { // Always overlay non-space chars, and first char (even if space) for background
+							backgroundRunes[pos] = toastRune
+						}
+					}
+				}
+				
+				backgroundLines[i+margin] = string(backgroundRunes)
+			}
+		}
+		
+		return strings.Join(backgroundLines, "\n")
 	}
 
 	return mainView
