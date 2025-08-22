@@ -66,6 +66,17 @@ func generateHSLColorWheel() []HSLColor {
 		TerminalCode: "default_bg", Style: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "15", Dark: "0"}),
 	})
 	
+	// Add grayscale colors (24-step grayscale ramp: 232-255)
+	for i := 232; i <= 255; i++ {
+		grayLevel := int(float64(i-232) / 23.0 * 100)
+		colors = append(colors, HSLColor{
+			Name: fmt.Sprintf("Gray %d%%", grayLevel),
+			Hue: 0, Saturation: 0, Lightness: grayLevel,
+			TerminalCode: fmt.Sprintf("%d", i),
+			Style: lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("%d", i))),
+		})
+	}
+	
 	// Create a visually pleasing rectangular arrangement
 	// Target: 12 rows x 18 columns = 216 colors
 	
@@ -279,24 +290,42 @@ func (hcp *HSLColorPicker) findNearestColor(direction string) int {
 	return bestIndex
 }
 
-// renderRectangularGrid creates a rectangular color grid layout
+// renderRectangularGrid creates a rectangular color grid layout with grayscale column and preview
 func (hcp *HSLColorPicker) renderRectangularGrid() string {
-	selectedStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
-	normalStyle := lipgloss.NewStyle()
-	labelStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"})
+	// Layout: [Grayscale Column] [Default Colors + Main Grid] [Preview Swatch]
 	
-	var rows []string
+	// Find different sections in colors array
+	defaultCount := 2
+	grayscaleStart := defaultCount
+	grayscaleCount := 24 // 232-255
+	mainGridStart := defaultCount + grayscaleCount
 	
-	// First row: Default colors with labels
+	// Build grayscale column (vertical)
+	var grayscaleColumn []string
+	for i := 0; i < grayscaleCount && grayscaleStart+i < len(hcp.colors); i++ {
+		colorIdx := grayscaleStart + i
+		color := hcp.colors[colorIdx]
+		swatch := color.Style.Render("██")
+		
+		// Add cursor indicator if this is selected
+		if colorIdx == hcp.selectedIndex {
+			swatch = "►" + swatch + "◄"
+		} else {
+			swatch = " " + swatch + " "
+		}
+		
+		grayscaleColumn = append(grayscaleColumn, swatch)
+	}
+	
+	// Build main color grid
+	var mainGridRows []string
+	
+	// Default colors row
 	var defaultRow []string
-	for i := 0; i < 2 && i < len(hcp.colors); i++ {
+	for i := 0; i < defaultCount && i < len(hcp.colors); i++ {
 		color := hcp.colors[i]
 		var swatch string
 		
-		// Special rendering for default colors
 		if color.TerminalCode == "default" {
 			swatch = "FG"
 		} else if color.TerminalCode == "default_bg" {
@@ -306,26 +335,25 @@ func (hcp *HSLColorPicker) renderRectangularGrid() string {
 		}
 		
 		rendered := color.Style.Render(swatch)
+		
+		// Add cursor indicator if this is selected
 		if i == hcp.selectedIndex {
-			rendered = selectedStyle.Render(rendered)
+			rendered = "►" + rendered + "◄"
 		} else {
-			rendered = normalStyle.Render(rendered)
+			rendered = " " + rendered + " "
 		}
+		
 		defaultRow = append(defaultRow, rendered)
 	}
 	
-	// Add spacing and label for default colors
 	if len(defaultRow) > 0 {
-		defaultRowStr := lipgloss.JoinHorizontal(lipgloss.Top, defaultRow...)
-		labeledDefault := lipgloss.JoinHorizontal(lipgloss.Top, 
-			labelStyle.Render("Default: "), defaultRowStr)
-		rows = append(rows, labeledDefault)
-		rows = append(rows, "") // spacer
+		mainGridRows = append(mainGridRows, lipgloss.JoinHorizontal(lipgloss.Top, defaultRow...))
+		mainGridRows = append(mainGridRows, "") // spacer
 	}
 	
-	// Main color grid: 12 rows x 18 columns
+	// Main color grid (12 rows x 18 columns)
 	colsPerRow := 18
-	colorIndex := 2 // Start after default colors
+	colorIndex := mainGridStart
 	
 	for row := 0; row < 12 && colorIndex < len(hcp.colors); row++ {
 		var rowColors []string
@@ -333,10 +361,11 @@ func (hcp *HSLColorPicker) renderRectangularGrid() string {
 			color := hcp.colors[colorIndex]
 			swatch := color.Style.Render("██")
 			
+			// Add cursor indicator if this is selected
 			if colorIndex == hcp.selectedIndex {
-				swatch = selectedStyle.Render(swatch)
+				swatch = "►" + swatch + "◄"
 			} else {
-				swatch = normalStyle.Render(swatch)
+				swatch = " " + swatch + " "
 			}
 			
 			rowColors = append(rowColors, swatch)
@@ -344,116 +373,43 @@ func (hcp *HSLColorPicker) renderRectangularGrid() string {
 		}
 		
 		if len(rowColors) > 0 {
-			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowColors...))
+			mainGridRows = append(mainGridRows, lipgloss.JoinHorizontal(lipgloss.Top, rowColors...))
 		}
 	}
 	
-	// Add grayscale colors at the bottom if we have any remaining
-	if colorIndex < len(hcp.colors) {
-		rows = append(rows, "") // spacer
+	// Build preview swatch
+	var preview string
+	if hcp.selectedIndex >= 0 && hcp.selectedIndex < len(hcp.colors) {
+		selectedColor := hcp.colors[hcp.selectedIndex]
 		
-		// Add grayscale colors - use 24 colors from 232-255 plus basic black/white
-		grayscaleColors := []HSLColor{
-			{"Black", 0, 0, 0, "0", lipgloss.NewStyle().Foreground(lipgloss.Color("0"))},
-		}
+		// Create large preview swatch
+		largeSwatch := selectedColor.Style.Render("████████\n████████\n████████\n████████")
 		
-		// Add 24-step grayscale ramp (232-255)
-		for i := 232; i <= 255; i++ {
-			grayLevel := int(float64(i-232) / 23.0 * 100)
-			grayscaleColors = append(grayscaleColors, HSLColor{
-				Name: fmt.Sprintf("Gray %d", grayLevel),
-				Hue: 0, Saturation: 0, Lightness: grayLevel,
-				TerminalCode: fmt.Sprintf("%d", i),
-				Style: lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("%d", i))),
-			})
-		}
+		previewStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"}).
+			Padding(1).
+			Align(lipgloss.Center)
 		
-		grayscaleColors = append(grayscaleColors, HSLColor{
-			Name: "White", Hue: 0, Saturation: 0, Lightness: 100,
-			TerminalCode: "15", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("15")),
-		})
+		colorInfo := fmt.Sprintf("%s\n[%s]", selectedColor.Name, selectedColor.TerminalCode)
 		
-		var grayscaleRows []string
-		colsPerGrayRow := 13 // 26 colors in 2 rows
-		for grayRowIdx := 0; grayRowIdx < 2; grayRowIdx++ {
-			var grayRow []string
-			for col := 0; col < colsPerGrayRow; col++ {
-				grayIndex := grayRowIdx*colsPerGrayRow + col
-				if grayIndex < len(grayscaleColors) {
-					color := grayscaleColors[grayIndex]
-					swatch := color.Style.Render("██")
-					
-					// Check if this grayscale color is selected (need to map to main color index)
-					isSelected := false
-					if hcp.selectedIndex >= colorIndex {
-						relativeIndex := hcp.selectedIndex - colorIndex
-						isSelected = (relativeIndex == grayIndex)
-					}
-					
-					if isSelected {
-						swatch = selectedStyle.Render(swatch)
-					} else {
-						swatch = normalStyle.Render(swatch)
-					}
-					
-					grayRow = append(grayRow, swatch)
-				}
-			}
-			if len(grayRow) > 0 {
-				grayscaleRows = append(grayscaleRows, lipgloss.JoinHorizontal(lipgloss.Top, grayRow...))
-			}
-		}
-		
-		if len(grayscaleRows) > 0 {
-			grayLabel := labelStyle.Render("Grayscale:")
-			rows = append(rows, grayLabel)
-			rows = append(rows, grayscaleRows...)
-		}
+		preview = previewStyle.Render(lipgloss.JoinVertical(lipgloss.Center, largeSwatch, "", colorInfo))
 	}
 	
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+	// Combine all sections horizontally
+	grayscaleColumnStr := lipgloss.JoinVertical(lipgloss.Left, grayscaleColumn...)
+	mainGridStr := lipgloss.JoinVertical(lipgloss.Left, mainGridRows...)
+	
+	// Add some spacing between sections
+	leftSection := lipgloss.JoinHorizontal(lipgloss.Top, grayscaleColumnStr, "  ", mainGridStr)
+	
+	if preview != "" {
+		return lipgloss.JoinHorizontal(lipgloss.Top, leftSection, "  ", preview)
+	}
+	
+	return leftSection
 }
 
-
-// rgbToHSL converts RGB (0-255) to HSL (H: 0-360, S: 0-100, L: 0-100)
-func rgbToHSL(r, g, b int) (h, s, l int) {
-	rf := float64(r) / 255.0
-	gf := float64(g) / 255.0
-	bf := float64(b) / 255.0
-	
-	max := math.Max(rf, math.Max(gf, bf))
-	min := math.Min(rf, math.Min(gf, bf))
-	
-	lf := (max + min) / 2.0
-	
-	if max == min {
-		// Achromatic
-		h, s = 0, 0
-	} else {
-		d := max - min
-		if lf > 0.5 {
-			s = int(d / (2.0 - max - min) * 100)
-		} else {
-			s = int(d / (max + min) * 100)
-		}
-		
-		switch max {
-		case rf:
-			hf := (gf - bf) / d
-			if gf < bf {
-				hf += 6
-			}
-			h = int(hf / 6.0 * 360)
-		case gf:
-			h = int(((bf-rf)/d + 2) / 6.0 * 360)
-		case bf:
-			h = int(((rf-gf)/d + 4) / 6.0 * 360)
-		}
-	}
-	
-	l = int(lf * 100)
-	return
-}
 
 // Show displays the HSL color picker
 func (hcp *HSLColorPicker) Show() {
@@ -517,19 +473,31 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 
 		case "up", "k":
 			if hcp.mode == "wheel" {
-				// Grid navigation - handle special cases for default colors and main grid
-				if hcp.selectedIndex < 2 {
-					// In default colors section - don't move up
+				defaultCount := 2
+				grayscaleStart := defaultCount
+				grayscaleCount := 24
+				mainGridStart := defaultCount + grayscaleCount
+				
+				if hcp.selectedIndex < defaultCount {
+					// In default colors - don't move up
 					return nil
-				} else if hcp.selectedIndex < 2+18 {
-					// First row of main grid - move to default colors
-					hcp.selectedIndex = hcp.selectedIndex - 2 // map to default colors (0 or 1)
-					if hcp.selectedIndex < 0 { hcp.selectedIndex = 0 }
+				} else if hcp.selectedIndex < mainGridStart {
+					// In grayscale column - move up one position
+					hcp.selectedIndex--
+					if hcp.selectedIndex < grayscaleStart {
+						hcp.selectedIndex = grayscaleStart + grayscaleCount - 1 // wrap to bottom of grayscale
+					}
 				} else {
 					// In main grid - move up one row (18 colors)
 					hcp.selectedIndex -= 18
-					if hcp.selectedIndex < 2 {
-						hcp.selectedIndex = 2 + (hcp.selectedIndex % 18) // wrap to first row
+					if hcp.selectedIndex < mainGridStart {
+						// Wrap to last row of main grid
+						col := (hcp.selectedIndex - mainGridStart) % 18
+						lastRow := ((len(hcp.colors) - mainGridStart - 1) / 18) * 18
+						hcp.selectedIndex = mainGridStart + lastRow + col
+						if hcp.selectedIndex >= len(hcp.colors) {
+							hcp.selectedIndex = len(hcp.colors) - 1
+						}
 					}
 				}
 			} else {
@@ -541,17 +509,27 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 
 		case "down", "j":
 			if hcp.mode == "wheel" {
-				// Grid navigation - handle special cases
-				if hcp.selectedIndex < 2 {
-					// In default colors - move to first row of main grid
-					hcp.selectedIndex = 2 + hcp.selectedIndex
+				defaultCount := 2
+				grayscaleStart := defaultCount
+				grayscaleCount := 24
+				mainGridStart := defaultCount + grayscaleCount
+				
+				if hcp.selectedIndex < defaultCount {
+					// In default colors - move to grayscale column
+					hcp.selectedIndex = grayscaleStart
+				} else if hcp.selectedIndex < mainGridStart {
+					// In grayscale column - move down one position
+					hcp.selectedIndex++
+					if hcp.selectedIndex >= mainGridStart {
+						hcp.selectedIndex = grayscaleStart // wrap to top of grayscale
+					}
 				} else {
 					// In main grid - move down one row (18 colors)
 					hcp.selectedIndex += 18
 					if hcp.selectedIndex >= len(hcp.colors) {
-						// Wrap to top of main grid
-						col := (hcp.selectedIndex - 2) % 18
-						hcp.selectedIndex = 2 + col
+						// Wrap to first row of main grid
+						col := (hcp.selectedIndex - mainGridStart) % 18
+						hcp.selectedIndex = mainGridStart + col
 					}
 				}
 			} else {
@@ -563,9 +541,36 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 
 		case "left", "h":
 			if hcp.mode == "wheel" {
-				hcp.selectedIndex--
-				if hcp.selectedIndex < 0 {
-					hcp.selectedIndex = len(hcp.colors) - 1
+				defaultCount := 2
+				grayscaleStart := defaultCount
+				grayscaleCount := 24
+				mainGridStart := defaultCount + grayscaleCount
+				
+				if hcp.selectedIndex < defaultCount {
+					// In default colors - move between them or wrap around
+					hcp.selectedIndex--
+					if hcp.selectedIndex < 0 {
+						hcp.selectedIndex = defaultCount - 1
+					}
+				} else if hcp.selectedIndex < mainGridStart {
+					// In grayscale column - move to default colors
+					hcp.selectedIndex = defaultCount - 1
+				} else {
+					// In main grid - move left or to grayscale if at left edge
+					col := (hcp.selectedIndex - mainGridStart) % 18
+					if col == 0 {
+						// At left edge of main grid - move to grayscale column
+						row := (hcp.selectedIndex - mainGridStart) / 18
+						grayscaleIndex := grayscaleStart + (row % grayscaleCount)
+						if grayscaleIndex < mainGridStart {
+							hcp.selectedIndex = grayscaleIndex
+						} else {
+							hcp.selectedIndex = grayscaleStart + grayscaleCount - 1
+						}
+					} else {
+						// Move left within row
+						hcp.selectedIndex--
+					}
 				}
 			} else {
 				hcp.selectedIndex--
@@ -576,9 +581,36 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 
 		case "right", "l":
 			if hcp.mode == "wheel" {
-				hcp.selectedIndex++
-				if hcp.selectedIndex >= len(hcp.colors) {
-					hcp.selectedIndex = 0
+				defaultCount := 2
+				grayscaleStart := defaultCount
+				grayscaleCount := 24
+				mainGridStart := defaultCount + grayscaleCount
+				
+				if hcp.selectedIndex < defaultCount {
+					// In default colors - move between them or to main grid
+					hcp.selectedIndex++
+					if hcp.selectedIndex >= defaultCount {
+						hcp.selectedIndex = mainGridStart // move to main grid
+					}
+				} else if hcp.selectedIndex < mainGridStart {
+					// In grayscale column - move to main grid
+					row := hcp.selectedIndex - grayscaleStart
+					mainGridIndex := mainGridStart + (row * 18)
+					if mainGridIndex < len(hcp.colors) {
+						hcp.selectedIndex = mainGridIndex
+					} else {
+						hcp.selectedIndex = mainGridStart
+					}
+				} else {
+					// In main grid - move right or wrap around
+					col := (hcp.selectedIndex - mainGridStart) % 18
+					if col == 17 || hcp.selectedIndex == len(hcp.colors) - 1 {
+						// At right edge or last color - wrap to beginning
+						hcp.selectedIndex = 0
+					} else {
+						// Move right within row
+						hcp.selectedIndex++
+					}
 				}
 			} else {
 				hcp.selectedIndex++
@@ -628,7 +660,7 @@ func (hcp *HSLColorPicker) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"}).
 		Padding(1, 2).
-		Width(66)
+		Width(120)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
