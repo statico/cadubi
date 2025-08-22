@@ -271,6 +271,7 @@ type App struct {
 	unicodeBrowser   *UnicodeBrowser
 	confirmDialog    *ConfirmationDialog
 	colorPicker      *HSLColorPicker
+	fileInputDialog  *FileInputDialog
 	keyMap           KeyMap
 	help             help.Model
 	clickableRegions []ClickableRegion
@@ -378,6 +379,7 @@ func NewApp() *App {
 		unicodeBrowser: NewUnicodeBrowser(),
 		confirmDialog:  NewSaveConfirmationDialog(),
 		colorPicker:    NewHSLColorPicker(),
+		fileInputDialog: NewFileInputDialog(),
 		keyMap:         DefaultKeyMap(),
 		help:           help.New(),
 		quitting:       false,
@@ -426,6 +428,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If color picker is visible, handle its keys first
 		if a.colorPicker.IsVisible() {
 			cmd := a.colorPicker.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
+		
+		// If file input dialog is visible, handle its keys first
+		if a.fileInputDialog.IsVisible() {
+			cmd := a.fileInputDialog.Update(msg)
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -487,6 +498,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Batch(cmds...)
 		}
 		
+		// If file input dialog is visible, let it handle mouse events first
+		if a.fileInputDialog.IsVisible() {
+			cmd := a.fileInputDialog.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
+		
 		// If Unicode browser is visible, let it handle mouse events first
 		if a.unicodeBrowser.IsVisible() {
 			cmd := a.unicodeBrowser.Update(msg)
@@ -524,6 +544,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.setPenColor(msg.Color)
 		trace.Debugf("ui", "Color selected from picker: %s (%s)", msg.Name, msg.Color)
 		return a, nil
+
+	case FileSelectedMsg:
+		// Handle file selection from file browser
+		if msg.Mode == "load" {
+			a.loadFile(msg.Path)
+		} else {
+			// Save mode - set filename and save
+			a.canvas.SetFilename(msg.Path)
+			a.saveFile()
+		}
+		trace.Debugf("ui", "File selected: %s (mode: %s)", msg.Path, msg.Mode)
+		return a, nil
+
 	}
 
 	return a, nil
@@ -860,13 +893,21 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// File operations
 	case "ctrl+s":
-		// Save current file
-		a.saveFile()
+		// Save current file or show save dialog
+		if a.canvas.HasFilename() {
+			a.saveFile()
+		} else {
+			// Show save dialog
+			if !a.showHelp && !a.unicodeBrowser.IsVisible() && !a.colorPicker.IsVisible() {
+				a.fileInputDialog.Show("save")
+			}
+		}
 
 	case "ctrl+o":
-		// Load file (for now, load a default test file)
-		// TODO: Implement file picker dialog
-		a.loadFile("test.cadubi")
+		// Show load dialog
+		if !a.showHelp && !a.unicodeBrowser.IsVisible() && !a.colorPicker.IsVisible() {
+			a.fileInputDialog.Show("load")
+		}
 
 	case "ctrl+n":
 		// New file
@@ -876,6 +917,9 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Close modals if open
 		if a.showHelp {
 			a.showHelp = false
+		}
+		if a.fileInputDialog.IsVisible() {
+			a.fileInputDialog.Hide()
 		}
 		if a.colorPicker.IsVisible() {
 			a.colorPicker.Hide()
@@ -1135,6 +1179,13 @@ func (a *App) View() string {
 		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, dialogView, lipgloss.WithWhitespaceChars(""))
 	}
 
+	// If file input dialog is visible, overlay it on the main view
+	if a.fileInputDialog.IsVisible() {
+		dialogView := a.fileInputDialog.View()
+		// Center the dialog on the screen
+		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, dialogView, lipgloss.WithWhitespaceChars(""))
+	}
+
 	// If color picker is visible, overlay it on the main view
 	if a.colorPicker.IsVisible() {
 		a.colorPicker.SetDimensions(a.width, a.height)
@@ -1277,9 +1328,9 @@ func (a *App) handleQuit() (tea.Model, tea.Cmd) {
 func (a *App) saveFile() {
 	filename := a.canvas.GetFilename()
 	if filename == "" {
-		// Default filename if none set
-		filename = "untitled.cadubi"
-		a.canvas.SetFilename(filename)
+		// This should not happen if file browser is used correctly
+		trace.Errorf("file", "Attempted to save file without filename set")
+		return
 	}
 
 	trace.Infof("file", "Saving canvas to file: %s", filename)

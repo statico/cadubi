@@ -1,0 +1,267 @@
+{
+  "version": "2.0",
+  "canvas": {
+    "width": 50,
+    "height": 17,
+    "min_x": 6,
+    "min_y": 5,
+    "max_x": 55,
+    "max_y": 21
+  },
+  "layers": [
+    {
+      "name": "Layer 1",
+      "visible": true,
+      "pixels": {
+        "11,11": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "13,12": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "15,8": {
+          "char": "●",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "16,13": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "20,15": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "21,5": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "23,16": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "24,15": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "27,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "30,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "34,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "36,9": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "38,18": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "38,5": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "39,21": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "40,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "43,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "45,10": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "45,17": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "46,16": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "48,15": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "49,14": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "51,14": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "53,13": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "54,12": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "54,13": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "55,12": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "6,8": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "7,9": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "8,9": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        },
+        "9,10": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        }
+      }
+    }
+  ]
+}
