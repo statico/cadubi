@@ -472,27 +472,68 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - [ ] Line/shape drawing tools
 - [ ] Text tool with font effects
 
-## Phase 7: File & Export System 📋 PLANNED
+## Phase 7: File & Export System 📋 IN PROGRESS
 
-### Native Format
+### Native Format ✅ PARTIALLY IMPLEMENTED
 
-- [ ] `.cadubi` format: JSON-based with layer data, metadata, version tracking
-- [ ] Project files: Save entire workspace including layers, settings, history
+- [x] **Basic `.cadubi` format**: JSON-based with layer data and version tracking (v2.0)
+  - [x] Complete layer preservation (visibility, pixel data with coordinates)  
+  - [x] Canvas bounds and dimensions storage
+  - [x] Full pixel attributes (char, foreground, background, bold, italic, underline)
+  - [x] UTF-8 character support in JSON format
+  - [x] Bi-directional save/load functionality with comprehensive test coverage
+
+**Remaining Native Format Tasks:**
+- [ ] Enhanced metadata storage (creation date, author, viewport position)
+- [ ] Layer names storage (currently generates "Layer N" names)
+- [ ] Compressed JSON for large canvases (gzip compression)
+- [ ] Command history preservation for session restoration
+- [ ] Project files: Save entire workspace including settings and history
 - [ ] Template system: Reusable project templates and components
+
+### Core File Format Support
+
+**PRIORITY**: Implement dual file format support for maximum compatibility:
+
+- [x] **Native .cadubi Format (JSON-based)** ✅ BASIC IMPLEMENTATION:
+  - [x] Complete layer information preservation (visibility, pixel data)
+  - [x] Canvas dimensions and bounds storage  
+  - [x] Version tracking (currently v2.0)
+  - [x] Full UTF-8 character support
+  - [ ] Layer names storage (enhancement needed)
+  - [ ] Enhanced metadata (creation date, author, viewport position)
+  - [ ] Compressed JSON for large canvases
+  - [ ] Command history preservation for session restoration
+
+- [ ] **ANSI UTF-8 Text Format (.ans, .txt)**:
+  - [ ] ANSI escape sequence export with full color fidelity
+  - [ ] UTF-8 encoding support for Unicode characters and wide chars
+  - [ ] Layer flattening for single-layer ANSI output
+  - [ ] Import parser for existing ANSI art files
+  - [ ] Terminal-ready output (can be cat'd directly to display)
+  - [ ] Proper line ending handling (Unix/Windows/Mac compatibility)
 
 ### Import/Export
 
-- [ ] Multiple file format support (.ans, .txt, .cadubi)
-- [ ] ANSI color export with high-fidelity terminal output
-- [ ] PNG/HTML export for web sharing
-- [ ] Import from various ASCII art formats
-- [ ] File recovery and autosave
+- [ ] **Bi-directional Format Support**:
+  - [ ] .cadubi ↔ ANSI conversion with layer flattening options
+  - [ ] Import ANSI files as single-layer .cadubi projects
+  - [ ] Export .cadubi projects as flattened ANSI with layer merge options
+  - [ ] Batch conversion utilities (cadubi-convert tool)
+
+- [ ] **Advanced Export Options**:
+  - [ ] PNG/HTML export for web sharing
+  - [ ] SVG export for vector graphics
+  - [ ] Multiple ANSI variants (16-color, 256-color, 24-bit)
+  - [ ] File recovery and autosave in both formats
 
 ### Advanced I/O
 
 - [ ] Version control integration: Git-friendly diff/merge for .cadubi files
 - [ ] Batch processing: Command-line tools for bulk operations
 - [ ] Web export: HTML/CSS output for web display
+- [ ] Format detection and automatic handling
+- [ ] Migration tools for upgrading file format versions
 
 ## Phase 8: Professional Features 📋 PLANNED
 
