@@ -396,7 +396,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - **Terminal Compatibility**: Debug issues across different terminal environments
 - **Automated Testing**: Generate test scenarios from real usage patterns
 
-## Phase 5: Unicode Explorer & Character Palette System ✅ IN PROGRESS
+## Phase 5: Unicode Explorer & Character Palette System ✅ COMPLETED
 
 ### Unicode Character Explorer ✅ COMPLETED
 - [x] **Unicode Character Browser**: Interactive explorer for non-emoji Unicode characters
@@ -429,14 +429,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   - [x] Automatic tracking when characters are selected from browser
   - [x] Smart filtering (only non-ASCII characters tracked)
   - [x] Full navigation support within recent characters
-- [ ] **Recent Colors Palette**: Track last 20 used colors
-  - [ ] Color swatch grid with visual preview
-  - [ ] Integration with existing color picker system
-  - [ ] Quick access via keyboard shortcuts
-- [ ] **Palette Modes**: Different swatch display options
-  - [ ] Grid mode (4x5 grid layout)
-  - [ ] Linear mode (horizontal strip)
-  - [ ] Compact mode (minimal space usage)
+- [x] **Recent Colors Palette**: Track last 20 used colors
+  - [x] Color swatch grid with visual preview in 10-column layout
+  - [x] Integration with existing HSL color picker system
+  - [x] Tab key to switch between "wheel" and "recent" modes
+  - [x] Automatic tracking when colors are selected or changed
+  - [x] Deduplication and most-recently-used ordering
+  - [x] Support for both named colors (red, blue) and numeric codes (232, 15)
+- [x] **Palette Modes**: Different swatch display options
+  - [x] Grid mode (10-column grid layout for recent colors)
+  - [x] Wheel mode (comprehensive HSL color wheel)
+  - [x] Seamless switching with Tab key
 
 ### Swatch Management System
 - [ ] **Save/Load Character Swatches**: 

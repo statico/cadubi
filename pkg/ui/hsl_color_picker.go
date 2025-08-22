@@ -66,6 +66,25 @@ func generateHSLColorWheel() []HSLColor {
 		TerminalCode: "default_bg", Style: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "15", Dark: "0"}),
 	})
 	
+	// Add basic named colors used by the application
+	namedColors := []struct{name, code string; h, s, l int}{
+		{"White", "white", 0, 0, 100},
+		{"Black", "black", 0, 0, 0},
+		{"Red", "red", 0, 100, 50},
+		{"Green", "green", 120, 100, 50},
+		{"Blue", "blue", 240, 100, 50},
+		{"Yellow", "yellow", 60, 100, 50},
+		{"Magenta", "magenta", 300, 100, 50},
+		{"Cyan", "cyan", 180, 100, 50},
+	}
+	
+	for _, nc := range namedColors {
+		colors = append(colors, HSLColor{
+			Name: nc.name, Hue: nc.h, Saturation: nc.s, Lightness: nc.l,
+			TerminalCode: nc.code, Style: lipgloss.NewStyle().Foreground(lipgloss.Color(nc.code)),
+		})
+	}
+	
 	// Add grayscale colors (24-step grayscale ramp: 232-255)
 	for i := 232; i <= 255; i++ {
 		grayLevel := int(float64(i-232) / 23.0 * 100)
@@ -448,6 +467,16 @@ func (hcp *HSLColorPicker) SetDimensions(width, height int) {
 	hcp.height = height
 }
 
+// FindColorByTerminalCode finds an HSLColor by its terminal code
+func (hcp *HSLColorPicker) FindColorByTerminalCode(terminalCode string) *HSLColor {
+	for _, color := range hcp.colors {
+		if color.TerminalCode == terminalCode {
+			return &color
+		}
+	}
+	return nil
+}
+
 // AddRecentColor adds a color to the recent colors list
 func (hcp *HSLColorPicker) AddRecentColor(color HSLColor) {
 	// Remove if already exists
@@ -465,6 +494,23 @@ func (hcp *HSLColorPicker) AddRecentColor(color HSLColor) {
 	if len(hcp.recentColors) > 20 {
 		hcp.recentColors = hcp.recentColors[:20]
 	}
+}
+
+// AddRecentColorByTerminalCode adds a color to recent colors by terminal code
+func (hcp *HSLColorPicker) AddRecentColorByTerminalCode(terminalCode string) {
+	if color := hcp.FindColorByTerminalCode(terminalCode); color != nil {
+		hcp.AddRecentColor(*color)
+	}
+}
+
+// GetRecentColors returns the recent colors list
+func (hcp *HSLColorPicker) GetRecentColors() []HSLColor {
+	return hcp.recentColors
+}
+
+// GetColors returns all colors (public method for testing)
+func (hcp *HSLColorPicker) GetColors() []HSLColor {
+	return hcp.colors
 }
 
 // Update handles input and state updates

@@ -1059,6 +1059,19 @@ func (a *App) setPenColor(color string) {
 	trace.Debugf("ui", "Changing pen color from '%s' to '%s'", a.cursor.Pen.Foreground, color)
 	a.cursor.Pen.Foreground = color
 	a.ctx.Cursor.Pen.Foreground = color
+	
+	// Add to recent colors in HSL color picker
+	a.colorPicker.AddRecentColorByTerminalCode(color)
+}
+
+// SetPenColor changes the pen color (public method for testing)
+func (a *App) SetPenColor(color string) {
+	a.setPenColor(color)
+}
+
+// GetColorPicker returns the HSL color picker (public method for testing)
+func (a *App) GetColorPicker() *HSLColorPicker {
+	return a.colorPicker
 }
 
 // cyclePenColor cycles through common colors
