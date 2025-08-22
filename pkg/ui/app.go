@@ -1246,57 +1246,41 @@ func (a *App) View() string {
 		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, browserView, lipgloss.WithWhitespaceChars(""))
 	}
 
-	// If toast is visible, overlay it in the upper right corner
+	// If toast is visible, show it at the bottom over the status bar
 	if a.toast.IsVisible() {
 		toastView := a.toast.View()
-		// Create background that fills the terminal and place toast on top right
-		background := lipgloss.Place(a.width, a.height, lipgloss.Left, lipgloss.Top, mainView)
 		
-		// Split background into lines and overlay toast in upper right
-		backgroundLines := strings.Split(background, "\n")
+		// Replace the bottom status bar area with the toast
+		// Split main view into lines
+		mainLines := strings.Split(mainView, "\n")
+		
+		// Calculate how many lines the toast needs
 		toastLines := strings.Split(toastView, "\n")
+		toastHeight := len(toastLines)
 		
-		// Calculate toast position (upper right with small margin)
-		margin := 1
-		toastWidth := 0
-		for _, line := range toastLines {
-			if len([]rune(line)) > toastWidth {
-				toastWidth = len([]rune(line))
+		// Replace the bottom lines with toast content, centered
+		for i := 0; i < toastHeight && i < len(mainLines); i++ {
+			lineIndex := len(mainLines) - toastHeight + i
+			if lineIndex >= 0 {
+				// Center the toast line
+				toastLine := toastLines[i]
+				toastWidth := lipgloss.Width(toastLine)
+				padding := (a.width - toastWidth) / 2
+				if padding < 0 {
+					padding = 0
+				}
+				
+				centeredToast := strings.Repeat(" ", padding) + toastLine
+				// Pad to full width
+				for lipgloss.Width(centeredToast) < a.width {
+					centeredToast += " "
+				}
+				
+				mainLines[lineIndex] = centeredToast
 			}
 		}
 		
-		toastX := a.width - toastWidth - margin
-		if toastX < 0 {
-			toastX = 0
-		}
-		
-		// Overlay toast onto background
-		for i, toastLine := range toastLines {
-			if i+margin < len(backgroundLines) {
-				backgroundLine := backgroundLines[i+margin]
-				backgroundRunes := []rune(backgroundLine)
-				toastRunes := []rune(toastLine)
-				
-				// Extend background line if needed
-				for len(backgroundRunes) < a.width {
-					backgroundRunes = append(backgroundRunes, ' ')
-				}
-				
-				// Overlay toast content
-				for j, toastRune := range toastRunes {
-					pos := toastX + j
-					if pos < len(backgroundRunes) {
-						if toastRune != ' ' || j == 0 { // Always overlay non-space chars, and first char (even if space) for background
-							backgroundRunes[pos] = toastRune
-						}
-					}
-				}
-				
-				backgroundLines[i+margin] = string(backgroundRunes)
-			}
-		}
-		
-		return strings.Join(backgroundLines, "\n")
+		return strings.Join(mainLines, "\n")
 	}
 
 	return mainView
