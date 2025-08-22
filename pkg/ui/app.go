@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cadubi/cadubi/pkg/canvas"
 	"github.com/cadubi/cadubi/pkg/commands"
@@ -273,6 +274,7 @@ type App struct {
 	confirmDialog    *ConfirmationDialog
 	colorPicker      *HSLColorPicker
 	fileInputDialog  *FileInputDialog
+	toast            *Toast
 	keyMap           KeyMap
 	help             help.Model
 	clickableRegions []ClickableRegion
@@ -381,6 +383,7 @@ func NewApp() *App {
 		confirmDialog:  NewSaveConfirmationDialog(),
 		colorPicker:    NewHSLColorPicker(),
 		fileInputDialog: NewFileInputDialog(),
+		toast:          NewToast(),
 		keyMap:         DefaultKeyMap(),
 		help:           help.New(),
 		quitting:       false,
@@ -534,8 +537,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "yes": // Save & Exit
 			if a.canvas.HasFilename() {
 				// Save existing file and quit
-				a.saveFile()
-				return a, tea.Quit
+				cmd := a.saveFile()
+				return a, tea.Batch(cmd, tea.Quit)
 			} else {
 				// Show file dialog to get filename for save
 				initialValue := a.getSaveDialogInitialValue()
@@ -563,16 +566,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			// Save mode - set filename and save
 			a.canvas.SetFilename(msg.Path)
-			a.saveFile()
+			cmd := a.saveFile()
 			
 			// If we were in the process of quitting, quit now
 			if a.quitting {
-				return a, tea.Quit
+				return a, tea.Batch(cmd, tea.Quit)
 			}
+			return a, cmd
 		}
 		trace.Debugf("ui", "File selected: %s (mode: %s)", msg.Path, msg.Mode)
 		return a, nil
 
+	default:
+		// Handle toast messages
+		if cmd := a.toast.Update(msg); cmd != nil {
+			return a, cmd
+		}
 	}
 
 	return a, nil
@@ -929,7 +938,8 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		
 		if a.canvas.HasFilename() {
-			a.saveFile()
+			cmd := a.saveFile()
+			return a, cmd
 		} else {
 			// Show save dialog
 			if !a.showHelp && !a.unicodeBrowser.IsVisible() && !a.colorPicker.IsVisible() {
@@ -1236,6 +1246,14 @@ func (a *App) View() string {
 		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, browserView, lipgloss.WithWhitespaceChars(""))
 	}
 
+	// If toast is visible, add it to the top of the main view
+	if a.toast.IsVisible() {
+		toastView := a.toast.View()
+		// Position toast at the top-right
+		toastLine := lipgloss.NewStyle().Width(a.width).Align(lipgloss.Right).Render(toastView)
+		return toastLine + "\n" + mainView
+	}
+
 	return mainView
 }
 
@@ -1360,12 +1378,12 @@ func (a *App) handleQuit() (tea.Model, tea.Cmd) {
 }
 
 // saveFile saves the current canvas to a file
-func (a *App) saveFile() {
+func (a *App) saveFile() tea.Cmd {
 	filename := a.canvas.GetFilename()
 	if filename == "" {
 		// This should not happen if file browser is used correctly
 		trace.Errorf("file", "Attempted to save file without filename set")
-		return
+		return nil
 	}
 
 	trace.Infof("file", "Saving canvas to file: %s", filename)
@@ -1375,12 +1393,17 @@ func (a *App) saveFile() {
 	if err != nil {
 		trace.Errorf("file", "Failed to save file %s: %v", filename, err)
 		// TODO: Show error dialog to user
-		return
+		return nil
 	}
 
 	// Mark as not modified after successful save
 	a.canvas.SetModified(false)
 	trace.Infof("file", "Successfully saved canvas to %s", filename)
+	
+	// Show toast notification
+	return func() tea.Msg {
+		return ToastMsg{Message: "File saved!", Duration: 2 * time.Second}
+	}
 }
 
 // loadFile loads a canvas from a file
