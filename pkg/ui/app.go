@@ -1295,61 +1295,8 @@ func (a *App) renderCanvasWithCursor(width, height int) string {
 	// Position viewport so cursor is visible, but keep (0,0) near top-left when possible
 	a.positionViewportForCursor(width, height)
 
-	// Get canvas content centered on cursor
-	content := a.canvas.GetViewportCentered(width, height)
-
-	// Calculate viewport position for cursor rendering
-	viewportX, viewportY := a.canvas.GetViewportPos()
-	startX := viewportX // viewportX/Y is already the top-left corner
-	startY := viewportY
-
-	// Overlay cursor
-	lines := strings.Split(content, "\n")
-
-	// Ensure we have enough lines
-	for len(lines) < height {
-		lines = append(lines, strings.Repeat(" ", width))
-	}
-
-	// Calculate cursor position within viewport
-	cursorX := a.cursor.X - startX
-	cursorY := a.cursor.Y - startY
-
-	if cursorY >= 0 && cursorY < len(lines) && cursorX >= 0 {
-		line := lines[cursorY]
-
-		// Ensure line is long enough
-		for len(line) <= cursorX {
-			line += " "
-		}
-
-		// Convert to runes for proper character handling
-		runes := []rune(line)
-
-		// Ensure we have enough runes
-		for len(runes) <= cursorX {
-			runes = append(runes, ' ')
-		}
-
-		// Add cursor styling
-		if cursorX < len(runes) {
-			cursorStyle := lipgloss.NewStyle().
-				Background(cursorBg).
-				Foreground(cursorFg)
-
-			cursorChar := runes[cursorX]
-			if cursorChar == ' ' {
-				cursorChar = '█' // Block cursor for empty spaces
-			}
-
-			// Replace character at cursor position
-			before := string(runes[:cursorX])
-			after := string(runes[cursorX+1:])
-			lines[cursorY] = before + cursorStyle.Render(string(cursorChar)) + after
-		}
-	}
-
-	return strings.Join(lines, "\n")
+	// Get canvas content with cursor rendered directly in the canvas
+	return a.canvas.GetViewportWithCursor(width, height, a.cursor.X, a.cursor.Y, string(cursorBg.Dark), string(cursorFg.Dark))
 }
 
 // positionViewportForCursor positions the viewport to show the cursor intelligently
@@ -1387,13 +1334,6 @@ func (a *App) positionViewportForCursor(width, height int) {
 	a.canvas.SetViewport(viewportX, viewportY)
 }
 
-// abs returns the absolute value of an integer
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
 
 // File operation methods
 

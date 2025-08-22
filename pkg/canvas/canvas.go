@@ -198,6 +198,18 @@ func (c *Canvas) GetViewportCentered(width, height int) string {
 	return c.getViewportInternal(startX, startY, width, height)
 }
 
+// GetViewportWithCursor returns viewport content with cursor overlay
+func (c *Canvas) GetViewportWithCursor(width, height, cursorX, cursorY int, cursorBg, cursorFg string) string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	// The viewportX/Y from CenterViewportOn represents the top-left corner of the view
+	startX := c.viewportX
+	startY := c.viewportY
+
+	return c.getViewportWithCursorInternal(startX, startY, width, height, cursorX, cursorY, cursorBg, cursorFg)
+}
+
 // getViewportInternal is the internal viewport rendering method (assumes lock held)
 func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 	var lines []string
@@ -231,6 +243,74 @@ func (c *Canvas) getViewportInternal(startX, startY, width, height int) string {
 
 				styledChar := style.Render(string(pixel.Char))
 				line = append(line, styledChar)
+				
+				// For wide characters (like emoji), skip the next column to avoid double-rendering
+				if unicode.IsWideChar(pixel.Char) {
+					x++ // Skip next column since wide char occupies 2 cells
+				}
+			} else {
+				line = append(line, " ")
+			}
+		}
+
+		lines = append(lines, strings.Join(line, ""))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// getViewportWithCursorInternal is the internal viewport rendering method with cursor overlay (assumes lock held)
+func (c *Canvas) getViewportWithCursorInternal(startX, startY, width, height, cursorX, cursorY int, cursorBg, cursorFg string) string {
+	var lines []string
+
+	for y := startY; y < startY+height; y++ {
+		var line []string
+
+		for x := startX; x < startX+width; x++ {
+			// Get composited pixel from all layers
+			pixel := c.layers.GetCompositePixel(x, y)
+
+			// Check if this is the cursor position
+			isCursor := (x == cursorX && y == cursorY)
+
+			if pixel.Char != ' ' || isCursor {
+				// Create styled character using Lipgloss
+				style := lipgloss.NewStyle()
+
+				if isCursor {
+					// Override with cursor styling
+					style = style.Background(lipgloss.Color(cursorBg)).
+						Foreground(lipgloss.Color(cursorFg))
+					
+					// Use existing character or block cursor for empty spaces
+					charToRender := pixel.Char
+					if charToRender == ' ' {
+						charToRender = '█'
+					}
+					
+					styledChar := style.Render(string(charToRender))
+					line = append(line, styledChar)
+				} else {
+					// Use normal pixel styling
+					if pixel.Foreground != "" {
+						style = style.Foreground(lipgloss.Color(pixel.Foreground))
+					}
+					if pixel.Background != "" {
+						style = style.Background(lipgloss.Color(pixel.Background))
+					}
+					if pixel.Bold {
+						style = style.Bold(true)
+					}
+					if pixel.Italic {
+						style = style.Italic(true)
+					}
+					if pixel.Underline {
+						style = style.Underline(true)
+					}
+
+					styledChar := style.Render(string(pixel.Char))
+					line = append(line, styledChar)
+				}
 				
 				// For wide characters (like emoji), skip the next column to avoid double-rendering
 				if unicode.IsWideChar(pixel.Char) {
