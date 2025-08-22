@@ -411,10 +411,25 @@ func (hcp *HSLColorPicker) renderRectangularGrid() string {
 }
 
 
-// Show displays the HSL color picker
+// Show displays the HSL color picker, optionally pre-selecting a color
 func (hcp *HSLColorPicker) Show() {
+	hcp.ShowWithColor("")
+}
+
+// ShowWithColor displays the HSL color picker with a specific color pre-selected
+func (hcp *HSLColorPicker) ShowWithColor(currentColor string) {
 	hcp.visible = true
-	hcp.selectedIndex = 0
+	hcp.selectedIndex = 0 // default to first color
+	
+	// If a current color is specified, try to find it in our colors array
+	if currentColor != "" {
+		for i, color := range hcp.colors {
+			if color.TerminalCode == currentColor {
+				hcp.selectedIndex = i
+				break
+			}
+		}
+	}
 }
 
 // Hide hides the HSL color picker

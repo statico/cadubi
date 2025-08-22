@@ -881,7 +881,11 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "p":
 		// Open color picker modal
 		if !a.showHelp && !a.unicodeBrowser.IsVisible() {
-			a.colorPicker.Show()
+			currentColor := a.cursor.Pen.Foreground
+			if currentColor == "" {
+				currentColor = "white" // default fallback
+			}
+			a.colorPicker.ShowWithColor(currentColor)
 		}
 	case "w":
 		a.setPenColor("white")
