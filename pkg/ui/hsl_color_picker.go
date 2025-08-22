@@ -44,82 +44,317 @@ func NewHSLColorPicker() *HSLColorPicker {
 	}
 }
 
-// generateHSLColorWheel creates a comprehensive 256-color palette
+// HexPosition represents a position in hexagonal coordinates
+type HexPosition struct {
+	Q int // column
+	R int // row
+	X int // screen x
+	Y int // screen y
+}
+
+// generateHSLColorWheel creates a hexagonal color wheel with many colors
 func generateHSLColorWheel() []HSLColor {
 	var colors []HSLColor
 	
-	// Standard 16 colors (0-15)
-	standardColors := []HSLColor{
+	// Center color - white/light neutral
+	colors = append(colors, HSLColor{
+		Name: "White", Hue: 0, Saturation: 0, Lightness: 95,
+		TerminalCode: "231", Style: lipgloss.NewStyle().Foreground(lipgloss.Color("231")),
+	})
+	
+	// Generate colors for hexagonal pattern
+	// Pattern needs: 3+5+7+9+11+13+15+13+11+9+7+5+3 = 111 colors
+	totalNeeded := 111
+	
+	for i := 0; i < totalNeeded; i++ {
+		// Calculate hue across full spectrum
+		hue := int(float64(i) / float64(totalNeeded) * 360)
+		
+		// Calculate position in hexagon for saturation/lightness
+		position := float64(i) / float64(totalNeeded)
+		
+		// Vary saturation: higher towards edges
+		saturation := 40 + int(position*60) // 40% to 100%
+		
+		// Vary lightness: create variety
+		baseLightness := 70 - int(position*20) // 70% to 50%
+		lightnessOffset := (i % 5 - 2) * 8 // -16, -8, 0, +8, +16
+		lightness := baseLightness + lightnessOffset
+		if lightness < 25 { lightness = 25 }
+		if lightness > 85 { lightness = 85 }
+		
+		// Find closest terminal color
+		terminalCode := findClosestTerminalColor(hue, saturation, lightness)
+		
+		colors = append(colors, HSLColor{
+			Name:         fmt.Sprintf("H%d-S%d-L%d", hue, saturation, lightness),
+			Hue:          hue,
+			Saturation:   saturation,
+			Lightness:    lightness,
+			TerminalCode: terminalCode,
+			Style:        lipgloss.NewStyle().Foreground(lipgloss.Color(terminalCode)),
+		})
+	}
+	
+	// Add comprehensive grayscale colors
+	grayscaleColors := []HSLColor{
 		{"Black", 0, 0, 0, "0", lipgloss.NewStyle().Foreground(lipgloss.Color("0"))},
-		{"Dark Red", 0, 100, 25, "1", lipgloss.NewStyle().Foreground(lipgloss.Color("1"))},
-		{"Dark Green", 120, 100, 25, "2", lipgloss.NewStyle().Foreground(lipgloss.Color("2"))},
-		{"Dark Yellow", 60, 100, 25, "3", lipgloss.NewStyle().Foreground(lipgloss.Color("3"))},
-		{"Dark Blue", 240, 100, 25, "4", lipgloss.NewStyle().Foreground(lipgloss.Color("4"))},
-		{"Dark Magenta", 300, 100, 25, "5", lipgloss.NewStyle().Foreground(lipgloss.Color("5"))},
-		{"Dark Cyan", 180, 100, 25, "6", lipgloss.NewStyle().Foreground(lipgloss.Color("6"))},
+		{"Dark Gray 1", 0, 0, 15, "232", lipgloss.NewStyle().Foreground(lipgloss.Color("232"))},
+		{"Dark Gray 2", 0, 0, 25, "8", lipgloss.NewStyle().Foreground(lipgloss.Color("8"))},
+		{"Gray 1", 0, 0, 40, "240", lipgloss.NewStyle().Foreground(lipgloss.Color("240"))},
+		{"Gray 2", 0, 0, 50, "244", lipgloss.NewStyle().Foreground(lipgloss.Color("244"))},
+		{"Gray 3", 0, 0, 65, "250", lipgloss.NewStyle().Foreground(lipgloss.Color("250"))},
 		{"Light Gray", 0, 0, 75, "7", lipgloss.NewStyle().Foreground(lipgloss.Color("7"))},
-		{"Dark Gray", 0, 0, 50, "8", lipgloss.NewStyle().Foreground(lipgloss.Color("8"))},
-		{"Red", 0, 100, 50, "9", lipgloss.NewStyle().Foreground(lipgloss.Color("9"))},
-		{"Green", 120, 100, 50, "10", lipgloss.NewStyle().Foreground(lipgloss.Color("10"))},
-		{"Yellow", 60, 100, 50, "11", lipgloss.NewStyle().Foreground(lipgloss.Color("11"))},
-		{"Blue", 240, 100, 50, "12", lipgloss.NewStyle().Foreground(lipgloss.Color("12"))},
-		{"Magenta", 300, 100, 50, "13", lipgloss.NewStyle().Foreground(lipgloss.Color("13"))},
-		{"Cyan", 180, 100, 50, "14", lipgloss.NewStyle().Foreground(lipgloss.Color("14"))},
 		{"White", 0, 0, 100, "15", lipgloss.NewStyle().Foreground(lipgloss.Color("15"))},
 	}
-	colors = append(colors, standardColors...)
+	colors = append(colors, grayscaleColors...)
 	
-	// 216 color cube (16-231) - 6x6x6 RGB cube
-	for r := 0; r < 6; r++ {
-		for g := 0; g < 6; g++ {
-			for b := 0; b < 6; b++ {
-				// Convert RGB cube to RGB values (0-255)
-				rVal := 0
-				if r > 0 {
-					rVal = 55 + r*40
-				}
-				gVal := 0
-				if g > 0 {
-					gVal = 55 + g*40
-				}
-				bVal := 0
-				if b > 0 {
-					bVal = 55 + b*40
-				}
+	return colors
+}
+
+// findClosestTerminalColor finds the closest 256-color terminal code for given HSL
+func findClosestTerminalColor(h, s, l int) string {
+	// For grayscale colors, use the 24-step grayscale ramp (232-255)
+	if s < 15 { 
+		grayLevel := int(float64(l) / 100.0 * 23) // 0-23 range
+		if grayLevel <= 0 { return "0" }  // black
+		if grayLevel >= 23 { return "15" } // white
+		return fmt.Sprintf("%d", 232 + grayLevel)
+	}
+	
+	// Convert HSL to RGB for better color matching
+	r, g, b := hslToRGB(h, s, l)
+	
+	// For the 216-color cube (16-231), find closest match
+	// The cube is 6x6x6 with RGB values at positions: 0, 95, 135, 175, 215, 255
+	cubeValues := []int{0, 95, 135, 175, 215, 255}
+	
+	bestR, bestG, bestB := 0, 0, 0
+	minDistance := float64(999999)
+	
+	for ri, rv := range cubeValues {
+		for gi, gv := range cubeValues {
+			for bi, bv := range cubeValues {
+				// Calculate distance in RGB space
+				dr := float64(r - rv)
+				dg := float64(g - gv) 
+				db := float64(b - bv)
+				distance := dr*dr + dg*dg + db*db
 				
-				// Convert RGB to HSL
-				h, s, l := rgbToHSL(rVal, gVal, bVal)
-				
-				colorCode := fmt.Sprintf("%d", 16+r*36+g*6+b)
-				colors = append(colors, HSLColor{
-					Name:         fmt.Sprintf("RGB(%d,%d,%d)", rVal, gVal, bVal),
-					Hue:          h,
-					Saturation:   s,
-					Lightness:    l,
-					TerminalCode: colorCode,
-					Style:        lipgloss.NewStyle().Foreground(lipgloss.Color(colorCode)),
-				})
+				if distance < minDistance {
+					minDistance = distance
+					bestR, bestG, bestB = ri, gi, bi
+				}
 			}
 		}
 	}
 	
-	// 24 grayscale colors (232-255)
-	for i := 0; i < 24; i++ {
-		gray := 8 + i*10 // 8 to 238
-		lightness := int(float64(gray) / 255.0 * 100)
-		colorCode := fmt.Sprintf("%d", 232+i)
-		colors = append(colors, HSLColor{
-			Name:         fmt.Sprintf("Gray %d", gray),
-			Hue:          0,
-			Saturation:   0,
-			Lightness:    lightness,
-			TerminalCode: colorCode,
-			Style:        lipgloss.NewStyle().Foreground(lipgloss.Color(colorCode)),
-		})
+	// Convert back to color cube index (16-231)
+	colorCode := 16 + bestR*36 + bestG*6 + bestB
+	return fmt.Sprintf("%d", colorCode)
+}
+
+// hslToRGB converts HSL to RGB (0-255 range)
+func hslToRGB(h, s, l int) (int, int, int) {
+	hf := float64(h) / 360.0
+	sf := float64(s) / 100.0
+	lf := float64(l) / 100.0
+	
+	var r, g, b float64
+	
+	if s == 0 {
+		r, g, b = lf, lf, lf // achromatic
+	} else {
+		hue2rgb := func(p, q, t float64) float64 {
+			if t < 0 { t += 1 }
+			if t > 1 { t -= 1 }
+			if t < 1.0/6.0 { return p + (q-p)*6*t }
+			if t < 1.0/2.0 { return q }
+			if t < 2.0/3.0 { return p + (q-p)*(2.0/3.0-t)*6 }
+			return p
+		}
+		
+		var q float64
+		if lf < 0.5 {
+			q = lf * (1 + sf)
+		} else {
+			q = lf + sf - lf*sf
+		}
+		p := 2*lf - q
+		
+		r = hue2rgb(p, q, hf+1.0/3.0)
+		g = hue2rgb(p, q, hf)
+		b = hue2rgb(p, q, hf-1.0/3.0)
 	}
 	
-	return colors
+	return int(r * 255), int(g * 255), int(b * 255)
 }
+
+// calculateHexPositions calculates screen positions for hexagonal layout
+func calculateHexPositions(colors []HSLColor) map[int]HexPosition {
+	positions := make(map[int]HexPosition)
+	
+	// Center position (index 0)
+	positions[0] = HexPosition{Q: 0, R: 0, X: 0, Y: 0}
+	
+	colorIndex := 1
+	maxRings := 7 // Match the number of rings in generation
+	
+	// Calculate positions for each ring
+	for ring := 1; ring <= maxRings && colorIndex < len(colors); ring++ {
+		colorsInRing := ring * 6 // Match the generation algorithm
+		
+		for i := 0; i < colorsInRing && colorIndex < len(colors); i++ {
+			// Calculate hexagonal coordinates with better spacing
+			angle := float64(i) / float64(colorsInRing) * 2 * math.Pi
+			
+			// Use smaller spacing to fit more colors on screen
+			ringRadius := float64(ring) * 1.5 // Reduced from 2 to 1.5
+			
+			// Convert to screen coordinates
+			x := int(ringRadius * math.Cos(angle))
+			y := int(ringRadius * math.Sin(angle) * 0.6) // Compress vertically for better fit
+			
+			positions[colorIndex] = HexPosition{
+				Q: int(ringRadius * math.Cos(angle)),
+				R: int(ringRadius * math.Sin(angle)),
+				X: x,
+				Y: y,
+			}
+			colorIndex++
+		}
+	}
+	
+	return positions
+}
+
+// findNearestColor finds the nearest color in the specified direction for hexagonal navigation
+func (hcp *HSLColorPicker) findNearestColor(direction string) int {
+	if hcp.selectedIndex < 0 || hcp.selectedIndex >= len(hcp.colors) {
+		return 0
+	}
+	
+	positions := calculateHexPositions(hcp.colors)
+	currentPos, exists := positions[hcp.selectedIndex]
+	if !exists {
+		// If selected color is in grayscale section, use simple navigation
+		switch direction {
+		case "up":
+			if hcp.selectedIndex > 0 { return hcp.selectedIndex - 1 }
+		case "down": 
+			if hcp.selectedIndex < len(hcp.colors)-1 { return hcp.selectedIndex + 1 }
+		case "left":
+			if hcp.selectedIndex > 0 { return hcp.selectedIndex - 1 }
+		case "right":
+			if hcp.selectedIndex < len(hcp.colors)-1 { return hcp.selectedIndex + 1 }
+		}
+		return hcp.selectedIndex
+	}
+	
+	bestIndex := hcp.selectedIndex
+	bestDistance := float64(1000) // large number
+	
+	// Find the nearest color in the specified direction
+	for index, pos := range positions {
+		if index == hcp.selectedIndex { continue }
+		
+		dx := float64(pos.X - currentPos.X)
+		dy := float64(pos.Y - currentPos.Y)
+		distance := math.Sqrt(dx*dx + dy*dy)
+		
+		// Check if this color is in the right direction
+		validDirection := false
+		switch direction {
+		case "up":
+			validDirection = dy < -0.5 // must be significantly above
+		case "down":
+			validDirection = dy > 0.5  // must be significantly below
+		case "left":
+			validDirection = dx < -0.5 // must be significantly to the left
+		case "right":
+			validDirection = dx > 0.5  // must be significantly to the right
+		}
+		
+		if validDirection && distance < bestDistance {
+			bestDistance = distance
+			bestIndex = index
+		}
+	}
+	
+	return bestIndex
+}
+
+// renderHexagonalWheel creates a simplified hexagonal-like color wheel layout
+func (hcp *HSLColorPicker) renderHexagonalWheel() string {
+	selectedStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"})
+	normalStyle := lipgloss.NewStyle()
+	
+	// Simpler approach: create hexagonal-like shape with defined row patterns
+	var rows []string
+	colorIndex := 0
+	
+	// Define hexagonal row pattern (colors per row from top to bottom)
+	hexPattern := []int{
+		3,     // top
+		5, 7,  // expanding
+		9, 11, 13, 15, // middle (widest)
+		13, 11, 9,     // contracting
+		7, 5,  // narrow
+		3,     // bottom
+	}
+	
+	for _, colorsInRow := range hexPattern {
+		if colorIndex >= len(hcp.colors) { break }
+		
+		var rowColors []string
+		
+		// Add leading spaces for centering
+		leadingSpaces := (15 - colorsInRow) / 2
+		for i := 0; i < leadingSpaces; i++ {
+			rowColors = append(rowColors, "  ")
+		}
+		
+		// Add colors
+		for i := 0; i < colorsInRow && colorIndex < len(hcp.colors); i++ {
+			color := hcp.colors[colorIndex]
+			swatch := color.Style.Render("██")
+			
+			if colorIndex == hcp.selectedIndex {
+				swatch = selectedStyle.Render(swatch)
+			} else {
+				swatch = normalStyle.Render(swatch)
+			}
+			
+			rowColors = append(rowColors, swatch)
+			colorIndex++
+		}
+		
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, rowColors...))
+	}
+	
+	// Add grayscale bar
+	var grayscaleBar []string
+	for i := colorIndex; i < len(hcp.colors); i++ {
+		color := hcp.colors[i]
+		swatch := color.Style.Render("██")
+		if i == hcp.selectedIndex {
+			swatch = selectedStyle.Render(swatch)
+		} else {
+			swatch = normalStyle.Render(swatch)
+		}
+		grayscaleBar = append(grayscaleBar, swatch)
+	}
+	
+	if len(grayscaleBar) > 0 {
+		rows = append(rows, "")
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, grayscaleBar...))
+	}
+	
+	return lipgloss.JoinVertical(lipgloss.Center, rows...)
+}
+
 
 // rgbToHSL converts RGB (0-255) to HSL (H: 0-360, S: 0-100, L: 0-100)
 func rgbToHSL(r, g, b int) (h, s, l int) {
@@ -223,24 +458,17 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 
 		case "up", "k":
 			if hcp.mode == "wheel" {
-				hcp.selectedIndex -= 16 // 16 colors per row
+				hcp.selectedIndex = hcp.findNearestColor("up")
 			} else {
 				hcp.selectedIndex -= 10 // 10 recent colors per row
-			}
-			if hcp.selectedIndex < 0 {
-				if hcp.mode == "wheel" {
-					hcp.selectedIndex = len(hcp.colors) - 1
-				} else {
+				if hcp.selectedIndex < 0 {
 					hcp.selectedIndex = len(hcp.recentColors) - 1
 				}
 			}
 
 		case "down", "j":
 			if hcp.mode == "wheel" {
-				hcp.selectedIndex += 16
-				if hcp.selectedIndex >= len(hcp.colors) {
-					hcp.selectedIndex = hcp.selectedIndex % 16
-				}
+				hcp.selectedIndex = hcp.findNearestColor("down")
 			} else {
 				hcp.selectedIndex += 10
 				if hcp.selectedIndex >= len(hcp.recentColors) {
@@ -249,23 +477,23 @@ func (hcp *HSLColorPicker) Update(msg tea.Msg) tea.Cmd {
 			}
 
 		case "left", "h":
-			hcp.selectedIndex--
-			if hcp.selectedIndex < 0 {
-				if hcp.mode == "wheel" {
-					hcp.selectedIndex = len(hcp.colors) - 1
-				} else {
+			if hcp.mode == "wheel" {
+				hcp.selectedIndex = hcp.findNearestColor("left")
+			} else {
+				hcp.selectedIndex--
+				if hcp.selectedIndex < 0 {
 					hcp.selectedIndex = len(hcp.recentColors) - 1
 				}
 			}
 
 		case "right", "l":
-			hcp.selectedIndex++
-			maxIndex := len(hcp.colors)
-			if hcp.mode == "recent" {
-				maxIndex = len(hcp.recentColors)
-			}
-			if hcp.selectedIndex >= maxIndex {
-				hcp.selectedIndex = 0
+			if hcp.mode == "wheel" {
+				hcp.selectedIndex = hcp.findNearestColor("right")
+			} else {
+				hcp.selectedIndex++
+				if hcp.selectedIndex >= len(hcp.recentColors) {
+					hcp.selectedIndex = 0
+				}
 			}
 
 		case "enter", " ":
@@ -329,29 +557,8 @@ func (hcp *HSLColorPicker) View() string {
 	var content string
 	
 	if hcp.mode == "wheel" {
-		// Build color wheel grid (16 colors per row)
-		var rows []string
-		colsPerRow := 16
-		for i := 0; i < len(hcp.colors); i += colsPerRow {
-			var colorSwatches []string
-			for j := 0; j < colsPerRow && i+j < len(hcp.colors); j++ {
-				index := i + j
-				color := hcp.colors[index]
-				swatch := color.Style.Render("██")
-				
-				if index == hcp.selectedIndex {
-					swatch = selectedStyle.Render(swatch)
-				} else {
-					swatch = normalStyle.Render(swatch)
-				}
-				
-				colorSwatches = append(colorSwatches, swatch)
-			}
-			if len(colorSwatches) > 0 {
-				rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, colorSwatches...))
-			}
-		}
-		content = lipgloss.JoinVertical(lipgloss.Left, rows...)
+		// Build hexagonal color wheel with proper ring-based layout
+		content = hcp.renderHexagonalWheel()
 	} else {
 		// Recent colors mode
 		if len(hcp.recentColors) == 0 {

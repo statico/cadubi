@@ -1,0 +1,28 @@
+╭────────────────────────────────────────────────────────────────────────────╮                                                                                   
+│ █                                                                          │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+│                                                                            │                                                                                   
+╰────────────────────────────────────────────────────────────────────────────╯                                                                                   
+ ■ Tool: pen · Pen: 〈*〉 · ●●● Colors · Layer: ⧉1/1 · Canvas: 1x1 · Cursor: (0,0) · History: 0/0 · File: ○untitled                                              
+ Move: hjkl · Draw: space · Erase: x · Undo: u · Redo: r · Pen: *#+|- · Colors: p,c,w,g,y,m · File: Ctrl+s,Ctrl+o,Ctrl+n · Layer: 1-5,n,v · Unicode: s · Help: ? 
+                                                                                                                                                                 
+↑/k move up       space  draw     * asterisk pen    c cycle colors …                                                                                             
+↓/j move down     x/bksp erase    # hash pen        p color picker                                                                                               
+←/h move left                     + plus pen        w white                                                                                                      
+→/l move right                    - minus pen       g green                                                                                                      
+                                  | pipe pen        y yellow                                                                                                     
