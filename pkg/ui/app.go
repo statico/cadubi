@@ -528,10 +528,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ConfirmationResultMsg:
 		// Handle confirmation dialog results
+		trace.Debugf("ui", "Confirmation dialog result: %s", msg.Action)
 		switch msg.Action {
 		case "yes": // Save & Exit
-			a.saveFile()
-			return a, tea.Quit
+			if a.canvas.HasFilename() {
+				// Save existing file and quit
+				a.saveFile()
+				return a, tea.Quit
+			} else {
+				// Show file dialog to get filename for save
+				a.fileInputDialog.Show("save")
+				// Don't quit yet - wait for file selection
+				a.quitting = true
+			}
 		case "no": // Exit Without Saving  
 			return a, tea.Quit
 		case "cancel": // Cancel
@@ -553,6 +562,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Save mode - set filename and save
 			a.canvas.SetFilename(msg.Path)
 			a.saveFile()
+			
+			// If we were in the process of quitting, quit now
+			if a.quitting {
+				return a, tea.Quit
+			}
 		}
 		trace.Debugf("ui", "File selected: %s (mode: %s)", msg.Path, msg.Mode)
 		return a, nil
@@ -893,7 +907,12 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// File operations
 	case "ctrl+s":
-		// Save current file or show save dialog
+		// Save current file or show save dialog (only if modified)
+		if !a.canvas.IsModified() {
+			// Document is clean, no need to save
+			return a, nil
+		}
+		
 		if a.canvas.HasFilename() {
 			a.saveFile()
 		} else {

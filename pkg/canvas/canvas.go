@@ -287,17 +287,38 @@ func (c *Canvas) GetLayerCount() int {
 
 // AddLayer adds a new layer
 func (c *Canvas) AddLayer(name string) (int, error) {
-	return c.layers.AddLayer(name)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	
+	layerIndex, err := c.layers.AddLayer(name)
+	if err == nil {
+		c.modified = true
+	}
+	return layerIndex, err
 }
 
 // RemoveLayer removes a layer
 func (c *Canvas) RemoveLayer(layer int) error {
-	return c.layers.RemoveLayer(layer)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	
+	err := c.layers.RemoveLayer(layer)
+	if err == nil {
+		c.modified = true
+	}
+	return err
 }
 
 // SetLayerVisible sets layer visibility
 func (c *Canvas) SetLayerVisible(layer int, visible bool) error {
-	return c.layers.SetLayerVisible(layer, visible)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	
+	err := c.layers.SetLayerVisible(layer, visible)
+	if err == nil {
+		c.modified = true
+	}
+	return err
 }
 
 // IsLayerVisible checks if a layer is visible

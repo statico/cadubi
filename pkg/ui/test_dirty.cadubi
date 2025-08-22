@@ -1,0 +1,27 @@
+{
+  "version": "2.0",
+  "canvas": {
+    "width": 1,
+    "height": 1,
+    "min_x": 5,
+    "min_y": 5,
+    "max_x": 5,
+    "max_y": 5
+  },
+  "layers": [
+    {
+      "name": "Layer 1",
+      "visible": true,
+      "pixels": {
+        "5,5": {
+          "char": "*",
+          "foreground": "white",
+          "background": "",
+          "bold": false,
+          "italic": false,
+          "underline": false
+        }
+      }
+    }
+  ]
+}
