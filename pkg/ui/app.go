@@ -6,6 +6,7 @@ import (
 
 	"github.com/cadubi/cadubi/pkg/canvas"
 	"github.com/cadubi/cadubi/pkg/commands"
+	"github.com/cadubi/cadubi/pkg/io"
 	"github.com/cadubi/cadubi/pkg/trace"
 	"github.com/cadubi/cadubi/pkg/unicode"
 	"github.com/charmbracelet/bubbles/help"
@@ -43,12 +44,13 @@ type KeyMap struct {
 	PenPipe     key.Binding
 
 	// Colors
-	CycleColors  key.Binding
-	ColorWhite   key.Binding
-	ColorBlack   key.Binding
-	ColorGreen   key.Binding
-	ColorYellow  key.Binding
-	ColorMagenta key.Binding
+	CycleColors   key.Binding
+	ColorPicker   key.Binding
+	ColorWhite    key.Binding
+	ColorBlack    key.Binding
+	ColorGreen    key.Binding
+	ColorYellow   key.Binding
+	ColorMagenta  key.Binding
 
 	// Layers
 	Layer1           key.Binding
@@ -63,6 +65,11 @@ type KeyMap struct {
 	Undo key.Binding
 	Redo key.Binding
 
+	// File operations
+	Save key.Binding
+	Load key.Binding
+	New  key.Binding
+
 	// General
 	Help           key.Binding
 	UnicodeBrowser key.Binding
@@ -71,7 +78,7 @@ type KeyMap struct {
 
 // ShortHelp returns keybindings to be shown in the mini help view
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.UnicodeBrowser, k.Quit, k.Draw, k.Erase, k.Undo, k.Redo}
+	return []key.Binding{k.Help, k.UnicodeBrowser, k.Save, k.Load, k.Quit, k.Draw, k.Erase, k.Undo, k.Redo}
 }
 
 // FullHelp returns keybindings for the expanded help view
@@ -79,11 +86,12 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right}, // Movement
 		{k.Draw, k.Erase},               // Drawing
-		{k.PenAsterisk, k.PenHash, k.PenPlus, k.PenMinus, k.PenPipe},   // Pen tools
-		{k.CycleColors, k.ColorWhite, k.ColorGreen, k.ColorYellow},     // Colors
+		{k.PenAsterisk, k.PenHash, k.PenPlus, k.PenMinus, k.PenPipe},           // Pen tools
+		{k.CycleColors, k.ColorPicker, k.ColorWhite, k.ColorGreen, k.ColorYellow}, // Colors
 		{k.Layer1, k.Layer2, k.Layer3, k.NewLayer, k.ToggleVisibility}, // Layers
-		{k.Undo, k.Redo},                  // History
-		{k.Help, k.UnicodeBrowser, k.Quit}, // General
+		{k.Undo, k.Redo},                       // History
+		{k.Save, k.Load, k.New},                // File operations
+		{k.Help, k.UnicodeBrowser, k.Quit},     // General
 	}
 }
 
@@ -144,6 +152,10 @@ func DefaultKeyMap() KeyMap {
 		CycleColors: key.NewBinding(
 			key.WithKeys("c"),
 			key.WithHelp("c", "cycle colors"),
+		),
+		ColorPicker: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "color picker"),
 		),
 		ColorWhite: key.NewBinding(
 			key.WithKeys("w"),
@@ -206,6 +218,20 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("r", "redo"),
 		),
 
+		// File operations
+		Save: key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("ctrl+s", "save"),
+		),
+		Load: key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("ctrl+o", "load"),
+		),
+		New: key.NewBinding(
+			key.WithKeys("ctrl+n"),
+			key.WithHelp("ctrl+n", "new"),
+		),
+
 		// General
 		Help: key.NewBinding(
 			key.WithKeys("?"),
@@ -231,21 +257,24 @@ type ClickableRegion struct {
 
 // App represents the main application state
 type App struct {
-	canvas         *canvas.Canvas
-	history        *commands.CommandHistory
-	ctx            *commands.CommandContext
-	cursor         commands.CursorState
-	layers         *LayerManager
-	width          int
-	height         int
-	viewportX      int
-	viewportY      int
-	currentTool    string
-	showHelp       bool
-	unicodeBrowser *UnicodeBrowser
-	keyMap         KeyMap
-	help           help.Model
+	canvas           *canvas.Canvas
+	history          *commands.CommandHistory
+	ctx              *commands.CommandContext
+	cursor           commands.CursorState
+	layers           *LayerManager
+	width            int
+	height           int
+	viewportX        int
+	viewportY        int
+	currentTool      string
+	showHelp         bool
+	unicodeBrowser   *UnicodeBrowser
+	confirmDialog    *ConfirmationDialog
+	colorPicker      *HSLColorPicker
+	keyMap           KeyMap
+	help             help.Model
 	clickableRegions []ClickableRegion
+	quitting         bool
 }
 
 // LayerManager is a simple implementation of the layer manager interface
@@ -347,8 +376,11 @@ func NewApp() *App {
 		layers:         layers,
 		currentTool:    "pen",
 		unicodeBrowser: NewUnicodeBrowser(),
+		confirmDialog:  NewSaveConfirmationDialog(),
+		colorPicker:    NewHSLColorPicker(),
 		keyMap:         DefaultKeyMap(),
 		help:           help.New(),
+		quitting:       false,
 	}
 	
 	trace.Infof("app", "Application created successfully with canvas size 80x24, initial tool: pen")
@@ -381,6 +413,24 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"unicode_browser_visible": a.unicodeBrowser.IsVisible(),
 			"help_visible": a.showHelp,
 		})
+		
+		// If confirmation dialog is visible, handle its keys first
+		if a.confirmDialog.IsVisible() {
+			cmd := a.confirmDialog.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
+		
+		// If color picker is visible, handle its keys first
+		if a.colorPicker.IsVisible() {
+			cmd := a.colorPicker.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
 		
 		// If Unicode browser is visible, handle its keys first
 		if a.unicodeBrowser.IsVisible() {
@@ -416,7 +466,26 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"y": msg.Y,
 			"button": int(msg.Button),
 			"unicode_browser_visible": a.unicodeBrowser.IsVisible(),
+			"confirm_dialog_visible": a.confirmDialog.IsVisible(),
 		})
+		
+		// If confirmation dialog is visible, let it handle mouse events first
+		if a.confirmDialog.IsVisible() {
+			cmd := a.confirmDialog.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
+		
+		// If color picker is visible, let it handle mouse events first
+		if a.colorPicker.IsVisible() {
+			cmd := a.colorPicker.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return a, tea.Batch(cmds...)
+		}
 		
 		// If Unicode browser is visible, let it handle mouse events first
 		if a.unicodeBrowser.IsVisible() {
@@ -435,6 +504,25 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.setPenChar(msg.Character)
 		a.unicodeBrowser.AddRecentChar(msg.Character)
 		a.unicodeBrowser.Hide()
+		return a, nil
+
+	case ConfirmationResultMsg:
+		// Handle confirmation dialog results
+		switch msg.Action {
+		case "yes": // Save & Exit
+			a.saveFile()
+			return a, tea.Quit
+		case "no": // Exit Without Saving  
+			return a, tea.Quit
+		case "cancel": // Cancel
+			a.quitting = false
+		}
+		return a, nil
+
+	case ColorSelectedMsg:
+		// Handle color selection from color picker
+		a.setPenColor(msg.Color)
+		trace.Debugf("ui", "Color selected from picker: %s (%s)", msg.Name, msg.Color)
 		return a, nil
 	}
 
@@ -664,11 +752,11 @@ func (a *App) moveCursorTo(x, y int) {
 func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
-		return a, tea.Quit
+		return a.handleQuit()
 	case "q":
 		// Don't quit if help modal is open
 		if !a.showHelp {
-			return a, tea.Quit
+			return a.handleQuit()
 		}
 
 	// Cursor movement (vi-style) - but not when help is open
@@ -719,6 +807,11 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		// Cycle through common colors
 		a.cyclePenColor()
+	case "p":
+		// Open color picker modal
+		if !a.showHelp && !a.unicodeBrowser.IsVisible() {
+			a.colorPicker.Show()
+		}
 	case "w":
 		a.setPenColor("white")
 	case "b":
@@ -765,10 +858,27 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	// File operations
+	case "ctrl+s":
+		// Save current file
+		a.saveFile()
+
+	case "ctrl+o":
+		// Load file (for now, load a default test file)
+		// TODO: Implement file picker dialog
+		a.loadFile("test.cadubi")
+
+	case "ctrl+n":
+		// New file
+		a.newFile()
+
 	case "escape", "esc":
 		// Close modals if open
 		if a.showHelp {
 			a.showHelp = false
+		}
+		if a.colorPicker.IsVisible() {
+			a.colorPicker.Hide()
 		}
 		if a.unicodeBrowser.IsVisible() {
 			a.unicodeBrowser.Hide()
@@ -951,6 +1061,17 @@ func (a *App) View() string {
 	cursorPart := fmt.Sprintf("Cursor: (%d,%d)", a.cursor.X, a.cursor.Y)
 	historyPart := fmt.Sprintf("History: %d/%d", position, total)
 	
+	// Add file status indicator
+	fileStatus := "○" // Saved
+	if a.canvas.IsModified() {
+		fileStatus = "●" // Modified
+	}
+	filename := a.canvas.GetFilename()
+	if filename == "" {
+		filename = "untitled"
+	}
+	filePart := fmt.Sprintf("File: %s%s", fileStatus, filename)
+	
 	// Add clickable regions for each part
 	// Tool (not clickable for now, but could cycle tools)
 	a.addClickableRegion(currentX, statusY, len(toolPart), 1, "cycle_tool", nil)
@@ -984,13 +1105,13 @@ func (a *App) View() string {
 	a.addClickableRegion(currentX + halfWidth, statusY, historyWidth - halfWidth, 1, "redo", nil)
 
 	status := statusStyle.Render(fmt.Sprintf(
-		"%s · %s · %s · %s · %s · %s · %s",
-		toolPart, penPart, colorPart, layerPart, canvasPart, cursorPart, historyPart,
+		"%s · %s · %s · %s · %s · %s · %s · %s",
+		toolPart, penPart, colorPart, layerPart, canvasPart, cursorPart, historyPart, filePart,
 	))
 
 	// Instructions
 	instructions := statusStyle.Render(
-		"Move: hjkl · Draw: space · Erase: x · Undo: u · Redo: r · Pen: *#+|- · Colors: c,w,g,y,m · Layer: 1-5,n,v · Unicode: s · Help: ?",
+		"Move: hjkl · Draw: space · Erase: x · Undo: u · Redo: r · Pen: *#+|- · Colors: p,c,w,g,y,m · File: Ctrl+s,Ctrl+o,Ctrl+n · Layer: 1-5,n,v · Unicode: s · Help: ?",
 	)
 
 	// Create the main view
@@ -1004,6 +1125,22 @@ func (a *App) View() string {
 		helpView := a.help.View(a.keyMap)
 
 		return lipgloss.JoinVertical(lipgloss.Left, mainView, "", helpView)
+	}
+
+	// If confirmation dialog is visible, overlay it on the main view  
+	if a.confirmDialog.IsVisible() {
+		a.confirmDialog.SetDimensions(a.width, a.height)
+		dialogView := a.confirmDialog.View()
+		// Center the dialog on the screen
+		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, dialogView, lipgloss.WithWhitespaceChars(""))
+	}
+
+	// If color picker is visible, overlay it on the main view
+	if a.colorPicker.IsVisible() {
+		a.colorPicker.SetDimensions(a.width, a.height)
+		pickerView := a.colorPicker.View()
+		// Center the color picker on the screen
+		return lipgloss.Place(a.width, a.height, lipgloss.Center, lipgloss.Center, pickerView, lipgloss.WithWhitespaceChars(""))
 	}
 
 	// If Unicode browser is visible, overlay it on the main view
@@ -1119,4 +1256,94 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// File operation methods
+
+// handleQuit handles the quit process, checking for unsaved changes
+func (a *App) handleQuit() (tea.Model, tea.Cmd) {
+	if a.canvas.IsModified() {
+		// Show save confirmation dialog
+		a.confirmDialog.Show()
+		a.quitting = true
+		return a, nil
+	} else {
+		// No unsaved changes, quit directly
+		return a, tea.Quit
+	}
+}
+
+// saveFile saves the current canvas to a file
+func (a *App) saveFile() {
+	filename := a.canvas.GetFilename()
+	if filename == "" {
+		// Default filename if none set
+		filename = "untitled.cadubi"
+		a.canvas.SetFilename(filename)
+	}
+
+	trace.Infof("file", "Saving canvas to file: %s", filename)
+	
+	// Save using the io package
+	err := io.SaveToFile(filename, a.canvas)
+	if err != nil {
+		trace.Errorf("file", "Failed to save file %s: %v", filename, err)
+		// TODO: Show error dialog to user
+		return
+	}
+
+	// Mark as not modified after successful save
+	a.canvas.SetModified(false)
+	trace.Infof("file", "Successfully saved canvas to %s", filename)
+}
+
+// loadFile loads a canvas from a file
+func (a *App) loadFile(filename string) {
+	trace.Infof("file", "Loading canvas from file: %s", filename)
+	
+	// Load using the io package
+	newCanvas, layerInfos, err := io.LoadFromFile(filename)
+	if err != nil {
+		trace.Errorf("file", "Failed to load file %s: %v", filename, err)
+		// TODO: Show error dialog to user
+		return
+	}
+
+	// Replace current canvas
+	a.canvas = newCanvas
+	a.canvas.SetFilename(filename)
+	a.canvas.SetModified(false)
+
+	// Update context
+	a.ctx.Canvas = newCanvas
+
+	// Reset cursor to origin
+	a.cursor.X = 0
+	a.cursor.Y = 0
+	a.ctx.Cursor = a.cursor
+
+	trace.Infof("file", "Successfully loaded canvas from %s with %d layers", filename, len(layerInfos))
+}
+
+// newFile creates a new blank canvas
+func (a *App) newFile() {
+	trace.Infof("file", "Creating new blank canvas")
+	
+	// Create new canvas
+	a.canvas = canvas.NewCanvas(80, 24)
+	a.canvas.SetModified(false)
+	a.canvas.SetFilename("")
+
+	// Update context
+	a.ctx.Canvas = a.canvas
+
+	// Reset cursor
+	a.cursor.X = 0
+	a.cursor.Y = 0
+	a.ctx.Cursor = a.cursor
+
+	// Reset history
+	a.history = commands.NewCommandHistory(1000)
+
+	trace.Infof("file", "New blank canvas created")
 }

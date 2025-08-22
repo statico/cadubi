@@ -17,7 +17,9 @@ type Canvas struct {
 	viewportX   int         // Current viewport position
 	viewportY   int         // Current viewport position
 	mutex       sync.RWMutex
-	initialized bool // Track if bounds are initialized
+	initialized bool   // Track if bounds are initialized
+	modified    bool   // Track if canvas has been modified since last save
+	filename    string // Current filename (empty if unsaved)
 }
 
 // NewCanvas creates a new infinite canvas with layers
@@ -31,6 +33,8 @@ func NewCanvas(width, height int) *Canvas {
 		viewportX:   0,
 		viewportY:   0,
 		initialized: false,
+		modified:    false,
+		filename:    "",
 	}
 }
 
@@ -67,7 +71,11 @@ func (c *Canvas) SetPixel(x, y int, pixel commands.Pixel) error {
 
 	// Set pixel on current layer
 	currentLayer := c.layers.GetCurrentLayer()
-	return c.layers.SetPixel(currentLayer, x, y, pixel)
+	err := c.layers.SetPixel(currentLayer, x, y, pixel)
+	if err == nil {
+		c.modified = true
+	}
+	return err
 }
 
 // GetDimensions returns the actual content dimensions
@@ -300,4 +308,41 @@ func (c *Canvas) IsLayerVisible(layer int) bool {
 // GetLayerNames returns formatted layer names with status indicators
 func (c *Canvas) GetLayerNames() []string {
 	return c.layers.GetLayerNames()
+}
+
+// File state management methods
+
+// IsModified returns true if the canvas has been modified since last save
+func (c *Canvas) IsModified() bool {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.modified
+}
+
+// SetModified sets the modified state of the canvas
+func (c *Canvas) SetModified(modified bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.modified = modified
+}
+
+// GetFilename returns the current filename
+func (c *Canvas) GetFilename() string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.filename
+}
+
+// SetFilename sets the current filename
+func (c *Canvas) SetFilename(filename string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.filename = filename
+}
+
+// HasFilename returns true if the canvas has a filename
+func (c *Canvas) HasFilename() bool {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.filename != ""
 }
